@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { AlertTriangle, AlertCircle, Info, Calendar, ArrowRight, Check } from "lucide-react";
+import { AlertTriangle, AlertCircle, Info, Calendar, ArrowRight } from "lucide-react";
 
 interface NotificationItem {
   id: string;
@@ -10,14 +10,13 @@ interface NotificationItem {
   time_ago: string;
   severity: string;
   deep_link: string;
-  is_mirrored_to_admin_chat?: boolean;
 }
 
 export const NotificationsFeed: React.FC<{
   notifications: NotificationItem[];
   unreadCount?: number;
   onViewAll?: () => void;
-}> = ({ notifications, unreadCount = 12, onViewAll }) => {
+}> = ({ notifications, unreadCount = 0, onViewAll }) => {
   const getIcon = (severity: string, title: string) => {
     if (title.toLowerCase().includes("meeting")) {
       return (
@@ -88,14 +87,11 @@ export const NotificationsFeed: React.FC<{
         ))}
       </div>
 
-      {/* Admin Google Chat Mirroring Pill */}
+      {/* Email routing note */}
       <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
-        <span className="flex items-center gap-1.5 font-medium text-emerald-700">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-          1:1 Admin Google Chat Mirroring
-        </span>
-        <span className="text-[10px] bg-emerald-50 text-emerald-700 px-2 py-0.5 rounded-full font-semibold border border-emerald-200/60">
-          Active ✓
+        <span className="flex items-center gap-1.5 font-medium text-slate-600">
+          <span className="w-2 h-2 rounded-full bg-indigo-500"></span>
+          Urgent &amp; critical alerts are emailed
         </span>
       </div>
     </div>

@@ -4,7 +4,7 @@
 - **Backend**: FastAPI (Python 3.12 / 3.11), SQLAlchemy 2.0 async, SQLite database anchored at `backend/company_intel.db`. Single-User Admin Mode with JWT authentication.
 - **Frontend**: Next.js 15.1.7 App Router, React 19, Tailwind CSS, Lucide icons. Modular view-switching dashboard architecture (`src/app/page.tsx` + `src/components/views/*`).
 - **External Integrations**:
-  - Live Redmine REST API (`https://redmine.aiindia.ai`, API key: `47cc9f603630e16fcb6f73e99a1111c59d080f18`).
+  - Live Redmine REST API (`https://redmine.aiindia.ai`, API key: `d1dff27e7aa00ff795adb4bc24ac8a6005046a75`).
   - OpenRouter AI Gateway (Model: `qwen/qwen3.5-flash-02-23`).
   - SMTP Email Alerting Server (Destination: `anil.aiindia@gmail.com`).
 
@@ -29,8 +29,8 @@
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | Live Redmine Sync & Backend Data Engine | Features 1, 2, 3, 4: Absolute DB path, memberships sync, original timestamps, pagination, and backend test hygiene | none | IN_PROGRESS |
-| M2 | Primary Dashboard Views & Data Visibility | Features 5, 6, 7, 8, 9: Project-wise Teams view, Employee 360 allocations & workload gauge, Tasks view timestamps, global sync trigger, lint fix | M1 | PLANNED |
+| M1 | Live Redmine Sync & Backend Data Engine | Features 1, 2, 3, 4: Absolute DB path, memberships sync, original timestamps, pagination, and backend test hygiene | none | DONE |
+| M2 | Primary Dashboard Views & Data Visibility | Features 5, 6, 7, 8, 9: Project-wise Teams view, Employee 360 allocations & workload gauge, Tasks view timestamps, global sync trigger, lint fix | M1 | DONE |
 | M3 | Notification Engine & SMTP Email Alerting | Features 10, 11: SMTP email service for urgent/critical to `anil.aiindia@gmail.com`, notification category filter tabs, remove legacy dispatch forms | M1 | PLANNED |
 | M4 | AI Assistant & Administration Configuration | Features 12, 13: Grounded AI assistant for employee project assignments and live project statuses, admin settings API and 4-card management view | M1, M2, M3 | PLANNED |
 | M5 | E2E Verification & Hardening | Feature 14: Full test suite verification (pytest, npm run build/lint, live sync validation) | M1, M2, M3, M4 | PLANNED |

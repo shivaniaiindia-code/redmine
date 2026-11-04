@@ -1,0 +1,3 @@
+.test_company_intel*.db
+.test_company_intel*.db-wal
+.test_company_intel*.db-shm

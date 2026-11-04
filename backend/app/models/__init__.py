@@ -14,7 +14,7 @@ from app.models.notification import (
 )
 from app.models.redmine_sync import RedmineSyncState, RedmineMapping
 from app.models.audit import AuditLog
-from app.models.alert_config import AlertRecipientConfig
+from app.models.alert_config import AlertRecipientConfig, AlertEmailRecipient, ScheduledEmailRun
 
 __all__ = [
     "Base",
@@ -27,6 +27,6 @@ __all__ = [
     "Notification", "NotificationDelivery", "NotificationRule", "GoogleChatSpace",
     "RedmineSyncState", "RedmineMapping",
     "AuditLog",
-    "AlertRecipientConfig",
+    "AlertRecipientConfig", "AlertEmailRecipient", "ScheduledEmailRun",
 ]
 

@@ -1,6 +1,6 @@
 from datetime import datetime, date, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, desc
+from sqlalchemy import select, func, desc, or_
 from app.models.project import Project
 from app.models.task import Task
 from app.models.employee import Employee
@@ -8,6 +8,7 @@ from app.models.team import Team
 from app.models.notification import Notification
 from app.models.redmine_sync import RedmineSyncState
 from app.core.config import settings
+from app.services.email_service import email_service
 from app.schemas.company import (
     CompanyDashboardData, KPICard, ProjectStatusOverview, DonutSegment,
     TaskDistributionItem, TeamWorkloadItem, DeadlineItem, ActivityItem,
@@ -26,9 +27,9 @@ class AnalyticsService:
         completed_projects_count = (await db.execute(select(func.count(Project.id)).where(Project.status == "COMPLETED"))).scalar() or 0
         
         # 2. Task metrics
-        total_open_tasks = (await db.execute(select(func.count(Task.id)).where(~Task.status.in_(["Resolved", "Closed", "DONE", "Completed"])))).scalar() or 0
-        completed_tasks = (await db.execute(select(func.count(Task.id)).where(Task.status.in_(["Resolved", "Closed", "DONE", "Completed"])))).scalar() or 0
-        overdue_tasks = (await db.execute(select(func.count(Task.id)).where(Task.is_overdue == True))).scalar() or 0
+        total_open_tasks = (await db.execute(select(func.count(Task.id)).where(~Task.status.in_(["Resolved", "Closed", "DONE", "Completed"]), Task.progress_percentage < 100))).scalar() or 0
+        completed_tasks = (await db.execute(select(func.count(Task.id)).where(or_(Task.status.in_(["Resolved", "Closed", "DONE", "Completed"]), Task.progress_percentage >= 100)))).scalar() or 0
+        overdue_tasks = (await db.execute(select(func.count(Task.id)).where(Task.is_overdue == True, Task.progress_percentage < 100))).scalar() or 0
         blocked_tasks = (await db.execute(select(func.count(Task.id)).where(Task.is_blocked == True))).scalar() or 0
         in_progress_tasks = (await db.execute(select(func.count(Task.id)).where(Task.status == "In Progress"))).scalar() or 0
         pending_tasks = (await db.execute(select(func.count(Task.id)).where(Task.status == "New"))).scalar() or 0
@@ -90,9 +91,9 @@ class AnalyticsService:
         for emp in employees:
             t_res = await db.execute(select(Task).where(Task.assigned_to_id == emp.id))
             e_tasks = t_res.scalars().all()
-            c_cnt = sum(1 for t in e_tasks if t.status in ["DONE", "Resolved", "Closed"])
-            p_cnt = sum(1 for t in e_tasks if t.status == "In Progress")
-            o_cnt = sum(1 for t in e_tasks if t.is_overdue)
+            c_cnt = sum(1 for t in e_tasks if t.status in ["DONE", "Resolved", "Closed", "Completed"] or (t.progress_percentage or 0) >= 100)
+            p_cnt = sum(1 for t in e_tasks if t.status == "In Progress" and (t.progress_percentage or 0) < 100)
+            o_cnt = sum(1 for t in e_tasks if t.is_overdue and (t.progress_percentage or 0) < 100)
             team_workload.append(
                 TeamWorkloadItem(
                     team_name=f"{emp.first_name} {emp.last_name[:1]}.",
@@ -141,12 +142,27 @@ class AnalyticsService:
                 )
             )
 
-        # Recent Activities
-        activities = [
-            ActivityItem(id="a1", title="Redmine Delta Sync Processed", subtitle="Projects & issues synchronized live", time_ago="Just now", activity_type="task_completed"),
-            ActivityItem(id="a2", title="Automated Alert Generation Cycle Completed", subtitle="Admin System Notification Bar updated", time_ago="2 min ago", activity_type="status_updated"),
-            ActivityItem(id="a3", title="Operational Blocker Check Passed", subtitle="System monitoring active", time_ago="5 min ago", activity_type="team_assignment")
-        ]
+        # Recent activities: the latest real Redmine updates (task journals), newest first
+        from app.models.task import TaskJournal
+        from app.services.period_analytics import time_ago as _ago
+        journal_rows = (await db.execute(
+            select(TaskJournal, Task, Employee)
+            .join(Task, TaskJournal.task_id == Task.id)
+            .outerjoin(Employee, TaskJournal.author_id == Employee.id)
+            .order_by(desc(TaskJournal.created_at)).limit(5)
+        )).all()
+        activities = []
+        for j, t, author in journal_rows:
+            changes = j.changes if isinstance(j.changes, list) else []
+            status_change = next((c for c in changes if isinstance(c, dict) and c.get("field") == "status"), None)
+            who = f"{author.first_name} {author.last_name}".strip().title() if author else "Redmine"
+            activities.append(ActivityItem(
+                id=j.id,
+                title=(f"Status changed: {t.title}" if status_change else f"Updated: {t.title}")[:120],
+                subtitle=f"by {who}",
+                time_ago=_ago(j.created_at),
+                activity_type="status_updated" if status_change else "task_assigned",
+            ))
 
         # Real Live Notifications from DB (sorted newest first)
         notif_res = await db.execute(
@@ -183,7 +199,12 @@ class AnalyticsService:
 
         integrations = [
             IntegrationStatus(name="Redmine", status="Connected" if settings.REDMINE_URL else "Configured", is_healthy=True, last_synced_at=f"Synced ({r_sync_time})"),
-            IntegrationStatus(name="Google Chat", status="Connected" if settings.GOOGLE_CHAT_ADMIN_WEBHOOK_URL else "Dual-Dispatch Mode", is_healthy=True, last_synced_at="Admin mirror active")
+            IntegrationStatus(
+                name="Email Alerts",
+                status="Configured" if email_service.is_configured() else "Not Configured",
+                is_healthy=email_service.is_configured(),
+                last_synced_at="Urgent and critical alerts",
+            )
         ]
 
         return CompanyDashboardData(

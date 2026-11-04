@@ -1,480 +1,385 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useCallback, useEffect, useState } from "react";
+import { apiFetch } from "@/lib/api";
 import {
   Sliders,
   RefreshCw,
   Bot,
   BellRing,
-  MessageSquare,
-  ShieldCheck,
+  Mail,
+  Save,
   CheckCircle2,
   AlertTriangle,
-  Mail,
-  User,
-  ExternalLink,
-  Save,
-  Check,
+  Loader2,
+  PlugZap,
+  Send,
+  KeyRound,
 } from "lucide-react";
+import { EmailRecipientsCard, type EmailRecipient } from "./EmailRecipientsCard";
+import { ActiveUsersCard } from "./ActiveUsersCard";
 
-interface RecipientConfig {
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+
+interface Recipient {
   id: string;
   label: string;
   recipient_email: string;
   recipient_name: string;
-  google_chat_webhook_url: string | null;
   in_app_enabled: boolean;
-  google_chat_enabled: boolean;
   email_enabled: boolean;
   is_active: boolean;
 }
 
-export const AdminView: React.FC = () => {
-  const [redmineStatus, setRedmineStatus] = useState<any>(null);
-  const [isSyncing, setIsSyncing] = useState(false);
-  const [isScanningAlerts, setIsScanningAlerts] = useState(false);
-  const [statusNotice, setStatusNotice] = useState<string | null>(null);
+interface Integrations {
+  redmine: {
+    url: string;
+    api_key_configured: boolean;
+    api_key_hint: string | null;
+    sync_interval_minutes: number;
+    last_synced_at: string | null;
+    records_synced: number;
+    sync_status: string;
+  };
+  smtp: {
+    configured: boolean;
+    host: string;
+    port: number;
+    username: string;
+    from_email: string;
+    from_name: string;
+    security: string;
+    password_set: boolean;
+    alert_severities: string[];
+  };
+  openrouter: {
+    configured: boolean;
+    api_key_hint: string | null;
+    base_url: string;
+    default_model: string;
+    fallback_model: string;
+  };
+  recipient: Recipient;
+  email_recipients: EmailRecipient[];
+  config_source: string;
+}
 
-  // Recipient config state
-  const [recipientConfig, setRecipientConfig] = useState<RecipientConfig | null>(null);
-  const [emailInput, setEmailInput] = useState("");
-  const [nameInput, setNameInput] = useState("");
-  const [webhookInput, setWebhookInput] = useState("");
+type Result = { ok: boolean; text: string } | null;
+
+const StatusBadge: React.FC<{ ok: boolean; okText: string; badText: string }> = ({ ok, okText, badText }) => (
+  <span
+    className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${
+      ok ? "bg-emerald-50 text-emerald-700 border-emerald-200" : "bg-amber-50 text-amber-700 border-amber-200"
+    }`}
+  >
+    {ok ? <CheckCircle2 className="w-3.5 h-3.5" /> : <AlertTriangle className="w-3.5 h-3.5" />}
+    {ok ? okText : badText}
+  </span>
+);
+
+const Row: React.FC<{ label: string; value: React.ReactNode; mono?: boolean }> = ({ label, value, mono }) => (
+  <div className="flex justify-between gap-3">
+    <span className="text-slate-500 shrink-0">{label}</span>
+    <span className={`font-semibold text-slate-800 text-right min-w-0 ${mono ? "font-mono break-all" : "break-words"}`}>{value}</span>
+  </div>
+);
+
+const ResultLine: React.FC<{ result: Result }> = ({ result }) =>
+  result ? (
+    <div
+      className={`p-2.5 rounded-lg text-xs font-medium border ${
+        result.ok ? "bg-emerald-50 border-emerald-200 text-emerald-800" : "bg-red-50 border-red-200 text-red-700"
+      }`}
+    >
+      {result.text}
+    </div>
+  ) : null;
+
+const btn =
+  "inline-flex items-center justify-center gap-2 py-2 px-4 rounded-lg text-xs font-semibold shadow-xs transition-all disabled:opacity-60";
+
+export const AdminView: React.FC<{ onOpenSignUp?: () => void; isSuperAdmin?: boolean }> = ({ onOpenSignUp, isSuperAdmin = false }) => {
+  const [data, setData] = useState<Integrations | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  const [redmineResult, setRedmineResult] = useState<Result>(null);
+  const [smtpResult, setSmtpResult] = useState<Result>(null);
+  const [recipientResult, setRecipientResult] = useState<Result>(null);
+  const [aiResult, setAiResult] = useState<Result>(null);
+
   const [inAppToggle, setInAppToggle] = useState(true);
-  const [googleChatToggle, setGoogleChatToggle] = useState(true);
   const [emailToggle, setEmailToggle] = useState(true);
-  const [isSavingConfig, setIsSavingConfig] = useState(false);
-  const [configSuccessMsg, setConfigSuccessMsg] = useState<string | null>(null);
 
-  const fetchRedmineStatus = async () => {
+  const load = useCallback(async () => {
     try {
-      const res = await fetch("http://localhost:8000/api/v1/redmine/status");
-      if (res.ok) {
-        const data = await res.json();
-        setRedmineStatus(data);
-      }
-    } catch (err) {
-      console.error("Failed to fetch redmine status", err);
-    }
-  };
+      const token = typeof window !== "undefined" ? localStorage.getItem("cip_token") : null;
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
 
-  const fetchRecipientConfig = async () => {
-    try {
-      const res = await fetch("http://localhost:8000/api/v1/admin/recipient-config");
-      if (res.ok) {
-        const data: RecipientConfig = await res.json();
-        setRecipientConfig(data);
-        setEmailInput(data.recipient_email || "anil.aiindia@gmail.com");
-        setNameInput(data.recipient_name || "Anil (Administrator)");
-        setWebhookInput(data.google_chat_webhook_url || "");
-        setInAppToggle(data.in_app_enabled ?? true);
-        setGoogleChatToggle(data.google_chat_enabled ?? true);
-        setEmailToggle(data.email_enabled ?? true);
-      }
-    } catch (err) {
-      console.error("Failed to fetch recipient config", err);
+      const res = await apiFetch(`${API_BASE_URL}/admin/integrations`, { headers });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const d: Integrations = await res.json();
+      setData(d);
+      setLoadError(null);
+      setInAppToggle(d.recipient.in_app_enabled);
+      setEmailToggle(d.recipient.email_enabled);
+    } catch {
+      setLoadError("Couldn't load administration settings. Please try again in a moment.");
     }
-  };
-
-  useEffect(() => {
-    fetchRedmineStatus();
-    fetchRecipientConfig();
   }, []);
 
-  const handleSaveRecipientConfig = async (e: React.FormEvent) => {
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const run = async (key: string, fn: () => Promise<void>) => {
+    setBusy(key);
+    try {
+      await fn();
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const postJson = async (path: string) => {
+    const token = typeof window !== "undefined" ? localStorage.getItem("cip_token") : null;
+    const headers: Record<string, string> = {};
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const res = await apiFetch(`${API_BASE_URL}${path}`, { method: "POST", headers });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return res.json();
+  };
+
+  const testRedmine = () =>
+    run("redmine-test", async () => {
+      try {
+        const r = await postJson("/admin/redmine/test");
+        setRedmineResult(
+          r.success
+            ? { ok: true, text: `Connected to ${r.base_url} in ${r.elapsed_ms} ms.` }
+            : { ok: false, text: `Connection failed: ${r.error || `HTTP ${r.status_code}`}` }
+        );
+      } catch (e) {
+        setRedmineResult({ ok: false, text: `Request failed: ${(e as Error).message}` });
+      }
+    });
+
+  const syncRedmine = () =>
+    run("redmine-sync", async () => {
+      setRedmineResult({ ok: true, text: "Synchronizing projects, memberships and issues from Redmine..." });
+      try {
+        const r = await postJson("/redmine/sync/trigger");
+        const s = r.summary || {};
+        setRedmineResult({
+          ok: true,
+          text: `Sync complete: ${s.projects_synced ?? 0} projects, ${s.tasks_synced ?? 0} tasks synchronized.`,
+        });
+        await load();
+      } catch (e) {
+        setRedmineResult({ ok: false, text: `Sync failed: ${(e as Error).message}` });
+      }
+    });
+
+  const testSmtp = () =>
+    run("smtp-test", async () => {
+      try {
+        const r = await postJson("/admin/smtp/test");
+        setSmtpResult(
+          r.success
+            ? { ok: true, text: `Test email accepted for ${r.results.length} recipient(s): ${r.results.map((x: { recipient: string }) => x.recipient).join(", ")}.` }
+            : { ok: false, text: r.detail }
+        );
+      } catch (e) {
+        setSmtpResult({ ok: false, text: `Request failed: ${(e as Error).message}` });
+      }
+    });
+
+  const testAi = () =>
+    run("ai-test", async () => {
+      try {
+        const r = await postJson("/admin/openrouter/test");
+        setAiResult(r.success ? { ok: true, text: `Assistant is working (replied in ${r.elapsed_ms} ms).` } : { ok: false, text: r.detail });
+      } catch (e) {
+        setAiResult({ ok: false, text: `Request failed: ${(e as Error).message}` });
+      }
+    });
+
+  const scanAlerts = () =>
+    run("scan", async () => {
+      try {
+        const r = await postJson("/notifications/generate-alerts");
+        setRecipientResult({ ok: true, text: `Alert scan complete: ${r.alerts_generated} new alert(s) generated.` });
+      } catch (e) {
+        setRecipientResult({ ok: false, text: `Alert scan failed: ${(e as Error).message}` });
+      }
+    });
+
+  const saveRecipient = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSavingConfig(true);
-    setConfigSuccessMsg(null);
+    run("save", async () => {
+      try {
+        const token = typeof window !== "undefined" ? localStorage.getItem("cip_token") : null;
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (token) headers["Authorization"] = `Bearer ${token}`;
 
-    try {
-      const res = await fetch("http://localhost:8000/api/v1/admin/recipient-config", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          recipient_email: emailInput.trim(),
-          recipient_name: nameInput.trim(),
-          google_chat_webhook_url: webhookInput.trim() || null,
-          in_app_enabled: inAppToggle,
-          google_chat_enabled: googleChatToggle,
-          email_enabled: emailToggle,
-        }),
-      });
-
-      if (res.ok) {
-        const updated = await res.json();
-        setRecipientConfig(updated);
-        setConfigSuccessMsg("Default recipient and channel settings updated successfully!");
-        setTimeout(() => setConfigSuccessMsg(null), 5000);
-      } else {
-        setStatusNotice("Failed to update recipient settings.");
+        const res = await apiFetch(`${API_BASE_URL}/admin/recipient-config`, {
+          method: "PUT",
+          headers,
+          body: JSON.stringify({
+            in_app_enabled: inAppToggle,
+            email_enabled: emailToggle,
+          }),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        setRecipientResult({ ok: true, text: "Channel settings saved." });
+        await load();
+      } catch (err) {
+        setRecipientResult({ ok: false, text: `Save failed: ${(err as Error).message}` });
       }
-    } catch (err) {
-      setStatusNotice("Error connecting to server to save settings.");
-    } finally {
-      setIsSavingConfig(false);
-    }
-  };
-
-  const handleSyncRedmine = async () => {
-    setIsSyncing(true);
-    setStatusNotice("Connecting to Redmine API (https://redmine.aiindia.ai)...");
-    try {
-      const res = await fetch("http://localhost:8000/api/v1/redmine/sync/trigger", {
-        method: "POST",
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setStatusNotice(
-          `Redmine Delta Sync Completed: ${data.summary?.projects_synced ?? 0} projects and ${data.summary?.tasks_synced ?? 0} tasks synced. Automated alerts generated.`
-        );
-        await fetchRedmineStatus();
-      } else {
-        setStatusNotice("Sync failed. Check Redmine configuration or network.");
-      }
-    } catch {
-      setStatusNotice("Error connecting to backend server.");
-    } finally {
-      setIsSyncing(false);
-      setTimeout(() => setStatusNotice(null), 6000);
-    }
-  };
-
-  const handleScanAlerts = async () => {
-    setIsScanningAlerts(true);
-    setStatusNotice("Scanning active projects and tasks for overdue deadlines and blockers...");
-    try {
-      const res = await fetch("http://localhost:8000/api/v1/notifications/generate-alerts", {
-        method: "POST",
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setStatusNotice(
-          `Alert Scan Complete: ${data.alerts_generated} new alerts generated and routed to ${recipientConfig?.recipient_email || "anil.aiindia@gmail.com"}.`
-        );
-      }
-    } catch {
-      setStatusNotice("Failed to execute alert generator.");
-    } finally {
-      setIsScanningAlerts(false);
-      setTimeout(() => setStatusNotice(null), 6000);
-    }
+    });
   };
 
   return (
-    <div className="space-y-6 max-w-5xl mx-auto">
-      {/* Header */}
-      <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-xs">
-        <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-          <Sliders className="w-6 h-6 text-indigo-600" />
-          System Administration & Integrations
+    <div className="space-y-4 sm:space-y-6 max-w-5xl mx-auto">
+      <div className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200/80 shadow-xs">
+        <h1 className="text-lg sm:text-xl font-bold text-slate-900 flex items-center gap-2">
+          <Sliders className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-600 shrink-0" />
+          Administration & Integrations
         </h1>
-        <p className="text-sm text-slate-500 mt-1">
-          Single-Admin Operational Mode: Redmine delta synchronization, automated alert triggers, configurable designated recipient, and OpenRouter AI.
+        <p className="text-xs sm:text-sm text-slate-500 mt-1">
+          Redmine sync, email alerts, alert routing and the AI assistant. Sign-in details are kept securely on the server and are never shown here.
         </p>
       </div>
 
-      {statusNotice && (
-        <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg text-sm text-indigo-800 font-medium">
-          {statusNotice}
+      {loadError && (
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700 font-medium flex items-center justify-between gap-3">
+          {loadError}
+          <button onClick={load} className={`${btn} bg-white border border-red-200 text-red-700 shadow-none`}>
+            Retry
+          </button>
         </div>
       )}
 
-      {/* Recipient Configuration Card (User Request: All alerts reach one designated account, configurable from admin settings) */}
-      <div className="bg-white p-6 rounded-xl border border-slate-200/80 shadow-xs space-y-5">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-slate-100 pb-4">
-          <div>
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Mail className="w-5 h-5 text-indigo-600" />
-              Default Alert Recipient & Dispatch Routing
-            </h2>
-            <p className="text-xs text-slate-500 mt-0.5">
-              100% of system-generated notifications (Employee, Project, Task, Team, Company) route to this designated account.
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Single-Recipient Routing Active
-            </span>
-          </div>
-        </div>
+      {data && <ActiveUsersCard onOpenSignUp={onOpenSignUp} isSuperAdmin={isSuperAdmin} />}
 
-        {configSuccessMsg && (
-          <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-lg text-xs font-semibold text-emerald-800 flex items-center gap-2">
-            <Check className="w-4 h-4 text-emerald-600" />
-            {configSuccessMsg}
-          </div>
-        )}
+      {data && <EmailRecipientsCard onChanged={load} />}
 
-        <form onSubmit={handleSaveRecipientConfig} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Designated Recipient Email <span className="text-red-500">*</span>
-              </label>
-              <div className="relative">
-                <input
-                  type="email"
-                  value={emailInput}
-                  onChange={(e) => setEmailInput(e.target.value)}
-                  placeholder="e.g. anil.aiindia@gmail.com"
-                  required
-                  className="w-full text-xs border border-slate-300 rounded-lg px-3 py-2.5 bg-slate-50 focus:bg-white focus:outline-hidden focus:border-indigo-500 font-medium text-slate-800"
-                />
+      {data && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+          {/* Card 1 — Redmine */}
+          <section className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200/80 shadow-xs space-y-4 flex flex-col">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <RefreshCw className="w-5 h-5 text-indigo-600" /> Redmine Sync
+              </h2>
+              <StatusBadge ok={data.redmine.api_key_configured && !!data.redmine.url} okText="Connected" badText="Not connected" />
+            </div>
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 space-y-1.5 text-xs">
+              <Row label="Instance" value={data.redmine.url || "not set"} mono />
+              <Row label="Auto-sync" value={`Every ${data.redmine.sync_interval_minutes} min`} />
+              <Row label="Last sync" value={data.redmine.last_synced_at ?? "Never"} />
+              <Row label="Records in last sync" value={`${data.redmine.records_synced}`} />
+            </div>
+            <ResultLine result={redmineResult} />
+            <div className="grid grid-cols-2 gap-2 mt-auto">
+              <button onClick={testRedmine} disabled={!!busy} className={`${btn} bg-white border border-slate-200 text-slate-700 hover:bg-slate-50`}>
+                {busy === "redmine-test" ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlugZap className="w-4 h-4" />}
+                Test Connection
+              </button>
+              <button onClick={syncRedmine} disabled={!!busy} className={`${btn} bg-indigo-600 hover:bg-indigo-700 text-white`}>
+                <RefreshCw className={`w-4 h-4 ${busy === "redmine-sync" ? "animate-spin" : ""}`} />
+                Sync Now
+              </button>
+            </div>
+          </section>
+
+          {/* Card 2 — SMTP */}
+          <section className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200/80 shadow-xs space-y-4 flex flex-col">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Mail className="w-5 h-5 text-indigo-600" /> Email Alerts
+              </h2>
+              <StatusBadge ok={data.smtp.configured} okText="Ready" badText="Not set up" />
+            </div>
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 space-y-1.5 text-xs">
+              <Row label="Sends from" value={data.smtp.username || "not set up"} />
+              <Row label="Emails sent for" value="Urgent + critical alerts (more per recipient)" />
+              <Row label="Recipients" value={`${data.email_recipients.filter((r) => r.is_active).length} active (see Email Recipients)`} />
+            </div>
+            {!data.smtp.configured && (
+              <div className="p-3 rounded-lg border border-amber-200 bg-amber-50 text-[11px] text-amber-900 space-y-1">
+                <p className="font-semibold flex items-center gap-1">
+                  <KeyRound className="w-3.5 h-3.5" /> Email sending isn&apos;t set up yet.
+                </p>
+                <p>Ask your technical administrator to connect the sender email account. Alerts still appear in the notification bar meanwhile.</p>
               </div>
-              <p className="text-[11px] text-slate-400 mt-1">
-                All automated alerts across the company are dispatched to this account.
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Recipient Name / Display Title
-              </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  value={nameInput}
-                  onChange={(e) => setNameInput(e.target.value)}
-                  placeholder="e.g. Anil (Administrator)"
-                  className="w-full text-xs border border-slate-300 rounded-lg px-3 py-2.5 bg-slate-50 focus:bg-white focus:outline-hidden focus:border-indigo-500 font-medium text-slate-800"
-                />
-              </div>
-              <p className="text-[11px] text-slate-400 mt-1">
-                Used in notification headers, Google Chat cards, and email alerts.
-              </p>
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Google Chat Webhook URL (External Mirroring Channel)
-            </label>
-            <input
-              type="text"
-              value={webhookInput}
-              onChange={(e) => setWebhookInput(e.target.value)}
-              placeholder="https://chat.googleapis.com/v1/spaces/.../messages?key=...&token=..."
-              className="w-full text-xs border border-slate-300 rounded-lg px-3 py-2.5 bg-slate-50 focus:bg-white focus:outline-hidden focus:border-indigo-500 font-mono text-slate-800"
-            />
-            <p className="text-[11px] text-slate-400 mt-1">
-              {webhookInput ? (
-                <span className="text-emerald-600 font-medium">✓ Webhook configured. External alerts will mirror here.</span>
-              ) : (
-                <span className="text-amber-600 font-medium">Optional: Leave blank to log delivery status as PENDING_WEBHOOK without dropping alerts.</span>
-              )}
-            </p>
-          </div>
-
-          {/* Delivery Channels Toggle */}
-          <div className="border border-slate-200 rounded-lg p-3 bg-slate-50/60 space-y-2">
-            <span className="text-xs font-bold text-slate-700 block">Dispatch Channels (Separately Tracked):</span>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={inAppToggle}
-                  onChange={(e) => setInAppToggle(e.target.checked)}
-                  className="rounded text-indigo-600 focus:ring-indigo-500"
-                />
-                <span className="font-semibold">In-App Notification Bar</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 font-mono">SENT</span>
-              </label>
-
-              <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={googleChatToggle}
-                  onChange={(e) => setGoogleChatToggle(e.target.checked)}
-                  className="rounded text-indigo-600 focus:ring-indigo-500"
-                />
-                <span className="font-semibold">Google Chat Mirror</span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono ${webhookInput ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"}`}>
-                  {webhookInput ? "LIVE" : "PENDING"}
-                </span>
-              </label>
-
-              <label className="flex items-center gap-2 text-xs text-slate-700 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={emailToggle}
-                  onChange={(e) => setEmailToggle(e.target.checked)}
-                  className="rounded text-indigo-600 focus:ring-indigo-500"
-                />
-                <span className="font-semibold">Direct Email Routing</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-800 font-mono">READY</span>
-              </label>
-            </div>
-          </div>
-
-          <div className="flex justify-end">
-            <button
-              type="submit"
-              disabled={isSavingConfig}
-              className="inline-flex items-center gap-2 py-2 px-5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold shadow-xs transition-all disabled:opacity-60"
-            >
-              <Save className="w-3.5 h-3.5" />
-              {isSavingConfig ? "Saving Settings..." : "Save Recipient Settings"}
+            )}
+            <ResultLine result={smtpResult} />
+            <button onClick={testSmtp} disabled={!!busy} className={`${btn} mt-auto bg-indigo-600 hover:bg-indigo-700 text-white`}>
+              {busy === "smtp-test" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              Send Test Email to All
             </button>
-          </div>
-        </form>
-      </div>
+          </section>
 
-      {/* Grid of Admin Control Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Card 1: Redmine Integration */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <RefreshCw className="w-5 h-5 text-indigo-600" />
-              Redmine Sync Engine
-            </h2>
-            <span
-              className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold ${
-                redmineStatus?.connected
-                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-                  : "bg-amber-50 text-amber-700 border border-amber-200"
-              }`}
-            >
-              <CheckCircle2 className="w-3.5 h-3.5" /> {redmineStatus?.connected ? "Connected" : "Standby"}
-            </span>
-          </div>
-
-          <p className="text-xs text-slate-600">
-            Bidirectional delta synchronizer targeting live projects, issues, journals, and assignees.
-          </p>
-
-          <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 space-y-1.5 text-xs">
-            <div className="flex justify-between">
-              <span className="text-slate-500">Instance URL:</span>
-              <span className="font-mono font-semibold text-slate-800">https://redmine.aiindia.ai</span>
+          {/* Card 3 — Recipient & routing */}
+          <section className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200/80 shadow-xs space-y-4 flex flex-col">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <BellRing className="w-5 h-5 text-amber-500" /> Alert Channels
+              </h2>
             </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Last Synced:</span>
-              <span className="font-semibold text-slate-800">{redmineStatus?.last_synced_at || "Never"}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Auto-Interval:</span>
-              <span className="font-semibold text-slate-800">Every 5 minutes</span>
-            </div>
-          </div>
+            <form onSubmit={saveRecipient} className="space-y-3">
+              <div className="flex flex-col gap-2 text-xs text-slate-700">
+                <label className="flex flex-wrap items-center gap-x-2 gap-y-0.5 py-1 cursor-pointer">
+                  <input type="checkbox" checked={inAppToggle} onChange={(e) => setInAppToggle(e.target.checked)} className="rounded text-indigo-600" />
+                  <span className="font-semibold">In-app notification bar</span>
+                  <span className="text-slate-400">(all alerts)</span>
+                </label>
+                <label className="flex flex-wrap items-center gap-x-2 gap-y-0.5 py-1 cursor-pointer">
+                  <input type="checkbox" checked={emailToggle} onChange={(e) => setEmailToggle(e.target.checked)} className="rounded text-indigo-600" />
+                  <span className="font-semibold">Email</span>
+                  <span className="text-slate-400">(to the recipients below)</span>
+                </label>
+              </div>
+              <ResultLine result={recipientResult} />
+              <div className="grid grid-cols-2 gap-2">
+                <button type="button" onClick={scanAlerts} disabled={!!busy} className={`${btn} bg-white border border-slate-200 text-slate-700 hover:bg-slate-50`}>
+                  {busy === "scan" ? <Loader2 className="w-4 h-4 animate-spin" /> : <BellRing className="w-4 h-4" />}
+                  Scan Alerts
+                </button>
+                <button type="submit" disabled={!!busy} className={`${btn} bg-indigo-600 hover:bg-indigo-700 text-white`}>
+                  {busy === "save" ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                  Save
+                </button>
+              </div>
+            </form>
+          </section>
 
-          <button
-            onClick={handleSyncRedmine}
-            disabled={isSyncing}
-            className="w-full inline-flex items-center justify-center gap-2 py-2 px-4 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold shadow-xs transition-all disabled:opacity-60"
-          >
-            <RefreshCw className={`w-4 h-4 ${isSyncing ? "animate-spin" : ""}`} />
-            {isSyncing ? "Synchronizing Live..." : "Trigger Redmine Sync Now"}
-          </button>
+          {/* Card 4 — OpenRouter */}
+          <section className="bg-white p-4 sm:p-5 rounded-xl border border-slate-200/80 shadow-xs space-y-4 flex flex-col">
+            <div className="flex items-center justify-between gap-2">
+              <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                <Bot className="w-5 h-5 text-indigo-600" /> AI Assistant
+              </h2>
+              <StatusBadge ok={data.openrouter.configured} okText="Ready" badText="Not set up" />
+            </div>
+            <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 space-y-1.5 text-xs">
+              <Row label="Answers from" value="Live project data" />
+              <Row label="Also writes" value="Alert email summaries" />
+            </div>
+            <p className="text-[11px] text-slate-500">
+              Questions about assignments and project status are answered straight from your live project data. If the assistant is ever unavailable, it shows the key figures instead.
+            </p>
+            <ResultLine result={aiResult} />
+            <button onClick={testAi} disabled={!!busy} className={`${btn} mt-auto bg-indigo-600 hover:bg-indigo-700 text-white`}>
+              {busy === "ai-test" ? <Loader2 className="w-4 h-4 animate-spin" /> : <PlugZap className="w-4 h-4" />}
+              Test Assistant
+            </button>
+          </section>
         </div>
-
-        {/* Card 2: Automated Alert Generation Engine */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <BellRing className="w-5 h-5 text-amber-500" />
-              Automated Alert Generation
-            </h2>
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Automated Active
-            </span>
-          </div>
-
-          <p className="text-xs text-slate-600">
-            Continuously monitors project milestones, overdue tasks, blockers, and workload thresholds.
-          </p>
-
-          <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 space-y-1.5 text-xs">
-            <div className="flex justify-between">
-              <span className="text-slate-500">Target Recipient:</span>
-              <span className="font-semibold text-indigo-700 font-mono">
-                {recipientConfig?.recipient_email || "anil.aiindia@gmail.com"}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Dispatch Channels:</span>
-              <span className="font-semibold text-slate-800">System Notification Bar + Google Chat</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Deduplication:</span>
-              <span className="font-semibold text-emerald-600">Enabled (Prevents spam)</span>
-            </div>
-          </div>
-
-          <button
-            onClick={handleScanAlerts}
-            disabled={isScanningAlerts}
-            className="w-full inline-flex items-center justify-center gap-2 py-2 px-4 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-semibold shadow-xs transition-all disabled:opacity-60"
-          >
-            <BellRing className={`w-4 h-4 ${isScanningAlerts ? "animate-spin" : ""}`} />
-            {isScanningAlerts ? "Scanning Engine..." : "Scan & Generate Alerts Now"}
-          </button>
-        </div>
-
-        {/* Card 3: OpenRouter AI Grounding */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <Bot className="w-5 h-5 text-indigo-600" />
-              OpenRouter AI Gateway
-            </h2>
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200">
-              <ShieldCheck className="w-3.5 h-3.5" /> Grounded
-            </span>
-          </div>
-
-          <p className="text-xs text-slate-600">
-            Natural language executive queries answered strictly through deterministic database tool execution. Zero hallucination.
-          </p>
-
-          <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 space-y-1.5 text-xs">
-            <div className="flex justify-between">
-              <span className="text-slate-500">Active Model:</span>
-              <span className="font-mono font-bold text-indigo-600">Qwen3.5-Flash (qwen3.5-flash-02-23)</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Gateway:</span>
-              <span className="font-semibold text-slate-800">OpenRouter Multi-Model Router</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Citation Engine:</span>
-              <span className="font-semibold text-emerald-600">100% Deterministic Grounding</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Card 4: Google Chat Webhook Mirroring */}
-        <div className="bg-white p-5 rounded-xl border border-slate-200/80 shadow-xs space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-emerald-600" />
-              Admin Google Chat Mirroring
-            </h2>
-            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-200">
-              <CheckCircle2 className="w-3.5 h-3.5" /> Dual-Dispatch Invariant
-            </span>
-          </div>
-
-          <p className="text-xs text-slate-600">
-            Mandatory architectural rule: 100% of notifications received in the System Notification Bar mirror 1:1 to Admin Google Chat in Cards v2 schema.
-          </p>
-
-          <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 space-y-1.5 text-xs">
-            <div className="flex justify-between">
-              <span className="text-slate-500">Payload Schema:</span>
-              <span className="font-mono font-semibold text-slate-800">Google Chat Cards v2</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Dual-Dispatch:</span>
-              <span className="font-semibold text-emerald-600">Active</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Recipient Mirror:</span>
-              <span className="font-mono text-slate-800 font-semibold">{recipientConfig?.recipient_email || "anil.aiindia@gmail.com"}</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

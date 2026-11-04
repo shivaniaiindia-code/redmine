@@ -1,5 +1,7 @@
+import asyncio
 import uuid
 import httpx
+from app.core.roles import NO_PLATFORM_ROLE
 from datetime import datetime, date, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_
@@ -13,8 +15,14 @@ from app.services.notification_service import notification_service
 
 class RedmineService:
     def __init__(self):
+        # One sync at a time: periodic loop, "Sync Redmine Now" and admin triggers share this lock
+        self._sync_lock = asyncio.Lock()
+        self.last_sync_summary: dict | None = None
+        self.next_sync_at = None  # set by the background loop in main.py
         self.base_url = settings.REDMINE_URL.rstrip("/") if settings.REDMINE_URL else "https://redmine.aiindia.ai"
         self.api_key = settings.REDMINE_API_KEY
+        self._cached_conn: dict | None = None
+        self._cached_conn_time: float = 0.0
 
     def _get_headers(self) -> dict:
         headers = {
@@ -63,34 +71,53 @@ class RedmineService:
                 break
         return results
 
-    async def test_connection(self) -> dict:
-        """Verify connectivity to Redmine server."""
+    async def test_connection(self, force: bool = False) -> dict:
+        """Verify connectivity to Redmine server (with 30s in-memory cache to prevent blocking UI)."""
+        import time
+        now = time.time()
+        if not force and self._cached_conn and (now - self._cached_conn_time) < 30.0:
+            return self._cached_conn
+
         url = f"{self.base_url}/projects.json?limit=1"
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 resp = await client.get(url, headers=self._get_headers())
                 if resp.status_code in [200, 201]:
                     data = resp.json()
-                    return {
+                    res = {
                         "connected": True,
                         "base_url": self.base_url,
                         "status_code": resp.status_code,
                         "projects_count": len(data.get("projects", []))
                     }
-                return {
-                    "connected": False,
-                    "base_url": self.base_url,
-                    "status_code": resp.status_code,
-                    "error": resp.text[:200]
-                }
+                else:
+                    res = {
+                        "connected": False,
+                        "base_url": self.base_url,
+                        "status_code": resp.status_code,
+                        "error": resp.text[:200]
+                    }
         except Exception as e:
-            return {
+            res = {
                 "connected": False,
                 "base_url": self.base_url,
                 "error": str(e)
             }
+        self._cached_conn = res
+        self._cached_conn_time = now
+        return res
 
     async def sync_all(self, db: AsyncSession) -> dict:
+        """Serialized entry point. A request arriving mid-sync waits for it and then runs its own pass."""
+        async with self._sync_lock:
+            summary = await self._sync_all_unlocked(db)
+            self.last_sync_summary = summary
+            return summary
+
+    def is_syncing(self) -> bool:
+        return self._sync_lock.locked()
+
+    async def _sync_all_unlocked(self, db: AsyncSession) -> dict:
         """
         Full bidirectional discovery and watermark delta sync from Redmine:
         1. Projects (with pagination and stale project marking)
@@ -191,7 +218,7 @@ class RedmineService:
                         stale_p.health_status = "ON_TRACK"
                         stale_p.health_reason = "Archived (no longer active in Redmine)"
 
-            await db.flush()
+            await db.commit()
 
             # ---------------------------------------------------------
             # 2. Fetch & Sync Full Employee Roster (/users.json)
@@ -229,7 +256,7 @@ class RedmineService:
                         first_name=first_name,
                         last_name=last_name,
                         email=u_email,
-                        job_title="Lead Architect & Administrator" if u_data.get("admin") else "Software Engineer",
+                        job_title=NO_PLATFORM_ROLE,
                         department="Administration" if u_data.get("admin") else "Engineering",
                         weekly_capacity_hours=40.0,
                         status="ACTIVE"
@@ -240,8 +267,6 @@ class RedmineService:
                 else:
                     emp.first_name = first_name
                     emp.last_name = last_name
-                    if u_data.get("admin"):
-                        emp.job_title = "Lead Architect & Administrator"
 
                 if not u_map:
                     u_map = RedmineMapping(
@@ -256,7 +281,7 @@ class RedmineService:
                     u_map.raw_metadata = u_data
                     u_map.last_synced_at = datetime.now(timezone.utc)
 
-            await db.flush()
+            await db.commit()
 
             # ---------------------------------------------------------
             # 3. Fetch & Sync Project Memberships & Delivery Teams
@@ -340,7 +365,7 @@ class RedmineService:
                                 first_name=first_name,
                                 last_name=last_name,
                                 email=safe_email,
-                                job_title="Software Engineer",
+                                job_title=NO_PLATFORM_ROLE,
                                 department="Engineering",
                                 weekly_capacity_hours=40.0,
                                 status="ACTIVE"
@@ -456,7 +481,7 @@ class RedmineService:
                                 first_name=first_name,
                                 last_name=last_name,
                                 email=safe_email,
-                                job_title="Software Engineer",
+                                job_title=NO_PLATFORM_ROLE,
                                 department="Engineering",
                                 weekly_capacity_hours=40.0,
                                 status="ACTIVE"
@@ -539,18 +564,22 @@ class RedmineService:
                 status_normalized = "New"
                 if "progress" in r_status_name.lower():
                     status_normalized = "In Progress"
-                elif "closed" in r_status_name.lower() or "resolved" in r_status_name.lower():
+                elif "closed" in r_status_name.lower() or "resolved" in r_status_name.lower() or "complet" in r_status_name.lower():
                     status_normalized = "DONE"
                 elif "feedback" in r_status_name.lower():
                     status_normalized = "Feedback"
 
                 r_priority = i_data.get("priority", {}).get("name", "Normal")
                 done_ratio = int(i_data.get("done_ratio") or 0)
+                if done_ratio >= 100:
+                    status_normalized = "DONE"
+
                 est_hours = float(i_data.get("estimated_hours") or 0.0)
                 spent_hours = float(i_data.get("spent_hours") or 0.0)
 
                 today = date.today()
-                is_overdue = bool(due_date and due_date < today and status_normalized != "DONE")
+                is_completed = (status_normalized == "DONE" or done_ratio >= 100)
+                is_overdue = bool(due_date and due_date < today and not is_completed)
 
                 # Check Task mapping
                 t_map_res = await db.execute(

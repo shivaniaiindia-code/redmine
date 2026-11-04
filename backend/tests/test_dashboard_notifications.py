@@ -5,7 +5,7 @@ from httpx import AsyncClient
 async def test_company_dashboard_data(client: AsyncClient):
     login_resp = await client.post(
         "/api/v1/auth/login",
-        json={"email": "admin@company.com", "password": "admin123"}
+        json={"email": "admin@aiindia.com", "password": "admin123"}
     )
     token = login_resp.json()["access_token"]
 
@@ -39,7 +39,7 @@ async def test_company_dashboard_data(client: AsyncClient):
 async def test_notification_dual_dispatch(client: AsyncClient):
     login_resp = await client.post(
         "/api/v1/auth/login",
-        json={"email": "admin@company.com", "password": "admin123"}
+        json={"email": "admin@aiindia.com", "password": "admin123"}
     )
     token = login_resp.json()["access_token"]
 

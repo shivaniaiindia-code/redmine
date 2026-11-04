@@ -23,8 +23,24 @@ def set_sqlite_pragma(dbapi_connection, connection_record):
     except Exception:
         pass
 
+def _test_admin_headers():
+    token = create_access_token(
+        data={"sub": "admin-test-id", "email": "admin@aiindia.com", "role": "SUPER_ADMIN"}
+    )
+    return {"Authorization": f"Bearer {token}"}
+
+
 @pytest_asyncio.fixture
 async def client():
+    """Signed in as the seeded Super Admin (the API rejects anonymous calls)."""
+    transport = ASGITransport(app=app)
+    async with AsyncClient(transport=transport, base_url="http://test", headers=_test_admin_headers()) as ac:
+        yield ac
+
+
+@pytest_asyncio.fixture
+async def anon_client():
+    """No credentials: for asserting that endpoints require sign-in."""
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as ac:
         yield ac
@@ -32,7 +48,7 @@ async def client():
 @pytest.fixture
 def admin_token():
     return create_access_token(
-        data={"sub": "admin-test-id", "email": "admin@company.com", "role": "SUPER_ADMIN"}
+        data={"sub": "admin-test-id", "email": "admin@aiindia.com", "role": "SUPER_ADMIN"}
     )
 
 @pytest.fixture

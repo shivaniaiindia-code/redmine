@@ -26,11 +26,12 @@ class NotificationDelivery(Base):
     notification_id: Mapped[str] = mapped_column(String(36), ForeignKey("notifications.id"), nullable=False)
     channel: Mapped[str] = mapped_column(String(50), nullable=False) # IN_APP, GOOGLE_CHAT_ADMIN, GOOGLE_CHAT_SPACE
     destination: Mapped[str] = mapped_column(Text, nullable=False) # Webhook URL or User ID
-    status: Mapped[str] = mapped_column(String(30), default="PENDING") # PENDING, SENT, FAILED, RETRYING
+    status: Mapped[str] = mapped_column(String(30), default="PENDING") # PENDING, SENT, FAILED, RETRYING, NOT_CONFIGURED, DISABLED
     attempt_count: Mapped[int] = mapped_column(Integer, default=1)
     response_payload: Mapped[str | None] = mapped_column(Text, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)  # failed emails: when to retry
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     notification: Mapped["Notification"] = relationship("Notification", back_populates="deliveries")

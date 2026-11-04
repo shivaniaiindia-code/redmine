@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 from app.core.database import get_db
 from app.core.permissions import CurrentUser
+from app.core.scope import Scope
 from app.models.project import Project
 from app.models.task import Task
 
@@ -12,11 +13,12 @@ router = APIRouter(prefix="/projects", tags=["Projects"])
 @router.get("/")
 async def list_projects(
     current_user: CurrentUser,
+    scope: Scope,
     db: AsyncSession = Depends(get_db)
 ):
     query = select(Project).order_by(desc(Project.created_at))
     result = await db.execute(query)
-    projects = result.scalars().all()
+    projects = scope.filter_projects(result.scalars().all())
 
     response = []
     for p in projects:
@@ -24,9 +26,9 @@ async def list_projects(
         t_res = await db.execute(select(Task).where(Task.project_id == p.id))
         tasks = t_res.scalars().all()
         total_tasks = len(tasks)
-        overdue_tasks = sum(1 for t in tasks if t.is_overdue)
-        blocked_tasks = sum(1 for t in tasks if t.is_blocked)
-        completed_tasks = sum(1 for t in tasks if t.status in ["DONE", "Resolved", "Closed"])
+        overdue_tasks = sum(1 for t in tasks if t.is_overdue and (t.progress_percentage or 0) < 100)
+        blocked_tasks = sum(1 for t in tasks if t.is_blocked and (t.progress_percentage or 0) < 100)
+        completed_tasks = sum(1 for t in tasks if t.status in ["DONE", "Resolved", "Closed", "Completed"] or (t.progress_percentage or 0) >= 100)
 
         response.append({
             "id": p.id,

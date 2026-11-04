@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 from app.models.task import Task
 from app.models.project import Project
-from app.models.notification import Notification
+from app.models.notification import Notification, NotificationDelivery
 from app.services.notification_service import notification_service
 
 @pytest.mark.asyncio
@@ -23,6 +23,10 @@ async def test_automated_alert_generation_engine(db_session: AsyncSession):
         )
     ).scalars().all()
     for t in existing_test_tasks:
+        subq = select(Notification.id).where(Notification.entity_id == t.id)
+        await db_session.execute(
+            delete(NotificationDelivery).where(NotificationDelivery.notification_id.in_(subq))
+        )
         await db_session.execute(
             delete(Notification).where(Notification.entity_id == t.id)
         )
@@ -68,6 +72,10 @@ async def test_automated_alert_generation_engine(db_session: AsyncSession):
 
     finally:
         # 5. Clean up test artifacts to prevent database pollution
+        subq = select(Notification.id).where(Notification.entity_id == overdue_task.id)
+        await db_session.execute(
+            delete(NotificationDelivery).where(NotificationDelivery.notification_id.in_(subq))
+        )
         await db_session.execute(
             delete(Notification).where(Notification.entity_id == overdue_task.id)
         )

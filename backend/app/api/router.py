@@ -9,6 +9,7 @@ from app.api.v1.tasks import router as tasks_router
 from app.api.v1.employees import router as employees_router
 from app.api.v1.teams import router as teams_router
 from app.api.v1.admin_config import router as admin_config_router
+from app.api.v1.reports import router as reports_router
 
 api_router = APIRouter()
 api_router.include_router(auth_router)
@@ -21,3 +22,4 @@ api_router.include_router(tasks_router)
 api_router.include_router(employees_router)
 api_router.include_router(teams_router)
 api_router.include_router(admin_config_router)
+api_router.include_router(reports_router)

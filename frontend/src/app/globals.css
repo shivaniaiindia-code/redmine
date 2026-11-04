@@ -26,3 +26,16 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* Phones: 16px form text prevents iOS zoom-on-focus; no grey tap flash */
+@media (max-width: 767px) {
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
+html {
+  -webkit-tap-highlight-color: transparent;
+  scroll-padding-top: 4.5rem;
+}

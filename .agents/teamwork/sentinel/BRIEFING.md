@@ -23,7 +23,7 @@ Oversee task interview, route the approved prompt, monitor orchestrator executio
 - **Delivered results**: Initial preparation and run-started notices delivered.
 
 ## Project Status
-- **Phase**: in progress (Milestone 1: Backend Redmine Data Sync & Memberships + Parallel E2E Test Authoring)
+- **Phase**: in progress (Phase 0: Explorer 2 completed frontend survey; Explorers 1 & 3 concluding; synthesis into PROJECT.md upcoming)
 
 ## Victory Audit Status
 - **Triggered**: no

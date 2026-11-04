@@ -4,7 +4,9 @@ from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.permissions import CurrentUser
+from app.core.scope import Scope
 from app.services.ai_service import ai_service
+from app.services.alert_composer import AlertComposer
 
 router = APIRouter(prefix="/ai", tags=["AI Assistant"])
 
@@ -20,6 +22,7 @@ class ChatRequest(BaseModel):
 async def chat_with_assistant(
     req: ChatRequest,
     current_user: CurrentUser,
+    scope: Scope,
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -31,7 +34,10 @@ async def chat_with_assistant(
     result = await ai_service.answer_management_query(
         db=db,
         prompt=req.prompt,
-        conversation_history=history_dicts
+        conversation_history=history_dicts,
+        scope=scope,
     )
+    # Users see plain words, never internal status codes (AT_RISK → "at risk")
+    result["response"] = AlertComposer.humanize(result.get("response", ""))
     return result
 

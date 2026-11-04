@@ -7,6 +7,7 @@ from app.core.database import get_db
 from app.core.permissions import CurrentUser
 from app.models.redmine_sync import RedmineSyncState
 from app.services.redmine_service import redmine_service
+from app.core.config import settings
 
 router = APIRouter(prefix="/redmine", tags=["Redmine Integration"])
 
@@ -30,7 +31,11 @@ async def get_redmine_status(
         "error": conn_info.get("error"),
         "last_synced_at": sync_state.last_sync_timestamp.strftime("%Y-%m-%d %H:%M:%S UTC") if sync_state else "Never",
         "records_synced": sync_state.records_synced if sync_state else 0,
-        "status": sync_state.status if sync_state else "IDLE"
+        "status": sync_state.status if sync_state else "IDLE",
+        "syncing_now": redmine_service.is_syncing(),
+        "auto_sync_interval_seconds": int(max(15.0, settings.REDMINE_SYNC_INTERVAL_MINUTES * 60)),
+        "next_sync_at": redmine_service.next_sync_at.strftime("%Y-%m-%d %H:%M:%S UTC") if redmine_service.next_sync_at else None,
+        "last_sync_summary": redmine_service.last_sync_summary,
     }
 
 @router.post("/sync/trigger", status_code=status.HTTP_200_OK)

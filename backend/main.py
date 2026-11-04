@@ -9,6 +9,7 @@ from app.core.database import async_session_factory
 from app.api.router import api_router
 from app.services.redmine_service import redmine_service
 from app.services.notification_service import notification_service
+from app.services import scheduled_reports
 from app.models.alert_config import AlertRecipientConfig
 
 
@@ -31,9 +32,8 @@ async def ensure_alert_config():
                 label="Default Admin Recipient",
                 recipient_email=settings.DEFAULT_ALERT_EMAIL,
                 recipient_name=settings.DEFAULT_ALERT_NAME,
-                google_chat_webhook_url=settings.GOOGLE_CHAT_ADMIN_WEBHOOK_URL or None,
                 in_app_enabled=True,
-                google_chat_enabled=True,
+                google_chat_enabled=False,
                 email_enabled=True,
                 is_active=True,
             )
@@ -46,20 +46,29 @@ async def ensure_alert_config():
 
 async def background_periodic_sync():
     """
-    Continuous background loop:
-    Runs every 5 minutes to synchronize Redmine and automatically generate
-    operational alerts for the Administrator.
+    Continuous background loop: every REDMINE_SYNC_INTERVAL_MINUTES it pulls
+    Redmine changes; sync_all() runs the alert scan, which emails urgent /
+    critical alerts the moment they are raised. Each tick also retries emails
+    that hit a temporary failure and sends the daily digest / weekly report
+    when they are due.
     """
+    from datetime import datetime, timedelta, timezone
+    interval = max(15.0, settings.REDMINE_SYNC_INTERVAL_MINUTES * 60)
     while True:
         try:
-            await asyncio.sleep(settings.REDMINE_SYNC_INTERVAL_MINUTES * 60)
+            redmine_service.next_sync_at = datetime.now(timezone.utc) + timedelta(seconds=interval)
+            await asyncio.sleep(interval)
             async with async_session_factory() as db:
-                await redmine_service.sync_all(db)
-            # Generate automated alerts after every sync
+                summary = await redmine_service.sync_all(db)
+            if summary.get("alerts_generated"):
+                print(f"[PeriodicSync] {summary['alerts_generated']} new alert(s) generated and dispatched.")
             async with async_session_factory() as db:
-                alerts = await notification_service.generate_automated_alerts(db)
-                if alerts:
-                    print(f"[PeriodicSync] {len(alerts)} new alert(s) generated.")
+                resent = await notification_service.retry_pending_emails(db)
+            if resent:
+                print(f"[EmailRetry] {resent} previously failed email(s) delivered.")
+            async with async_session_factory() as db:
+                for line in await scheduled_reports.run_due(db):
+                    print(f"[ScheduledEmail] {line}")
         except asyncio.CancelledError:
             break
         except Exception as e:
@@ -73,20 +82,23 @@ async def lifespan(app: FastAPI):
 
     # 2. Ensure AlertRecipientConfig exists (safe on already-seeded DB)
     await ensure_alert_config()
+    async with async_session_factory() as db:
+        await notification_service.seed_email_recipients_if_empty(db)
 
-    # 3. Perform initial live Redmine sync & automated alert generation
-    try:
-        async with async_session_factory() as db:
-            print("[Startup] Triggering initial Redmine sync & automated alert generation...")
-            sync_res = await redmine_service.sync_all(db)
-            print(f"[Startup] Redmine sync complete: {sync_res}")
+    # 3. Trigger initial live Redmine sync & automated alert generation in background
+    async def initial_sync():
+        try:
+            async with async_session_factory() as db:
+                print("[Startup] Triggering initial Redmine sync...")
+                sync_res = await redmine_service.sync_all(db)
+                print(f"[Startup] Redmine sync complete: {sync_res}")
+            async with async_session_factory() as db:
+                alerts = await notification_service.generate_automated_alerts(db)
+                print(f"[Startup] {len(alerts)} automated alert(s) generated on startup.")
+        except Exception as e:
+            print(f"[Startup] Initial sync notice: {e}")
 
-        # Run initial alert scan after sync
-        async with async_session_factory() as db:
-            alerts = await notification_service.generate_automated_alerts(db)
-            print(f"[Startup] {len(alerts)} automated alert(s) generated on startup.")
-    except Exception as e:
-        print(f"[Startup] Initial sync/alert warning: {e}")
+    asyncio.create_task(initial_sync())
 
     # 4. Start background periodic monitor
     sync_task = asyncio.create_task(background_periodic_sync())

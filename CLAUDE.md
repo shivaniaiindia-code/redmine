@@ -8,14 +8,14 @@
 The **Company Intelligence Platform** is an enterprise-grade operational management web application that unifies:
 1. Executive, Project, Team, and Employee 360-degree dashboards.
 2. External issue tracking via **Redmine REST API** with watermark delta synchronization.
-3. Event-driven notifications with dual-dispatch: **System Notification Bar** + **Real-time Admin Google Chat Mirroring**.
+3. Event-driven notifications: **System Notification Bar** for every alert + **SMTP email to the Administrator** for urgent/critical alerts.
 4. Grounded conversational AI assistant powered by **OpenRouter** and deterministic backend Python tools (zero hallucination).
 
 All detailed system designs and schemas are located in [`docs/`](./docs/):
 - [`docs/SYSTEM_ARCHITECTURE.md`](./docs/SYSTEM_ARCHITECTURE.md): System topology & 7-agent organization.
 - [`docs/DATABASE_DESIGN.md`](./docs/DATABASE_DESIGN.md): Relational models, ERD, and historical preservation.
 - [`docs/REDMINE_DATA_MAPPING.md`](./docs/REDMINE_DATA_MAPPING.md): Redmine discovery and delta sync protocol.
-- [`docs/NOTIFICATION_RULES.md`](./docs/NOTIFICATION_RULES.md): Notification triggers & Admin Google Chat mirroring architecture.
+- [`docs/NOTIFICATION_RULES.md`](./docs/NOTIFICATION_RULES.md): Notification triggers (note: delivery is now in-app + SMTP email; Google Chat sections are superseded).
 - [`docs/AI_AGENT_ARCHITECTURE.md`](./docs/AI_AGENT_ARCHITECTURE.md): OpenRouter gateway & deterministic tool execution.
 - [`docs/API_DESIGN.md`](./docs/API_DESIGN.md): Modular FastAPI REST routes and RBAC guards.
 - [`docs/IMPLEMENTATION_PLAN.md`](./docs/IMPLEMENTATION_PLAN.md): Phased sprint delivery roadmap.
@@ -30,7 +30,7 @@ Development and code modifications must respect the responsibilities of the **7 
 2. **Frontend Agent**: Next.js 14+ App Router, TypeScript, Tailwind CSS, shadcn/ui, Recharts visualizations, Employee 360 & Project dashboards.
 3. **Backend Agent**: FastAPI application, SQLAlchemy 2.0 async models, Alembic migrations, JWT authentication, and RBAC enforcement.
 4. **Redmine Agent**: Redmine REST client (`httpx`), metadata discovery, watermark sync loop, mapping tables (`redmine_mappings`), and offline cache fallback.
-5. **Notification Agent**: Rule evaluation engine, alert dispatching, in-app notification bar, escalation chains, and **Google Chat Cards v2 webhook mirroring to the Administrator**.
+5. **Notification Agent**: Rule evaluation engine, alert dispatching, in-app notification bar, escalation chains, and **SMTP email delivery of urgent/critical alerts to the Administrator**.
 6. **AI Agent**: OpenRouter LLM integration, deterministic Python tool catalog (`get_projects_overview`, `get_employee_workload`, etc.), RBAC context filtering, and source citation badges.
 7. **QA Agent**: Pytest test suites, Vitest UI testing, security auditing, and boundary penetration testing.
 
@@ -38,9 +38,11 @@ Development and code modifications must respect the responsibilities of the **7 
 
 ## 3. Mandatory Development Rules & Constraints
 
-1. **Admin Google Chat Mirroring Mandate**:
-   - Every single notification received in the **System Notification Bar** (in-app header bar, notification drawer, bell badge) **MUST simultaneously be mirrored and dispatched in real-time to the Administrator's Google Chat**.
-   - Mirroring must include full event metadata, priority tagging, and direct actionable deep links back to the platform.
+1. **Admin SMTP Email Alerting Mandate** (replaced Google Chat mirroring, 2026-11-03):
+   - Every notification is recorded in the **System Notification Bar** (in-app header bar, notification drawer, bell badge).
+   - Every **URGENT** and **CRITICAL** notification **MUST** be delivered by SMTP email to the designated administrator (default `anil.aiindia@gmail.com`, configurable in Administration). Google Chat dispatch has been removed.
+   - Emails must include full event metadata, severity tagging, and a deep link back to the platform. Every delivery attempt is tracked in `notification_deliveries` (`EMAIL_SMTP`: SENT / FAILED / NOT_CONFIGURED / DISABLED).
+   - SMTP credentials live only in `backend/.env`; they are never stored in the database or returned by the API.
 2. **Dual-Intelligence Principle**:
    - **Operational Intelligence (Deterministic)**: Overdue counts, project health status, burn-down percentages, capacity hours, and critical path slip MUST be calculated deterministically in backend Python code.
    - **Management Intelligence (Grounded AI)**: The AI layer explains bottlenecks, summarizes delivery risks, and answers management questions based strictly on the verified operational facts.
@@ -61,7 +63,7 @@ Our coding agents operate with reference-backed runbooks:
 - `frontend-dashboard`: Next.js 14 App Router, dark indigo theme tokens, and Recharts.
 - `backend-fastapi-rbac`: FastAPI async endpoints, SQLAlchemy 2.0, and RBAC guards.
 - `redmine-sync`: Discovery, watermark delta polling, journals change history, and pagination (MCP Market + Redmine CLI).
-- `notification-google-chat`: System notification bar + 100% 1:1 Admin Google Chat mirroring.
+- `notification-google-chat`: System notification bar rules (its Google Chat mirroring parts are superseded by SMTP email alerting).
 - `ai-openrouter-grounding`: OpenRouter gateway, deterministic tools catalog, and source citation chips.
 - `qa-security-testing`: Pytest fixtures, RBAC penetration testing, and API error resilience.
 - `employee-360-growth`: Employee 360, career ladder rubrics, and historical continuity.
@@ -124,7 +126,7 @@ npm run build
 - **Phase 1**: System Foundation, Database & Core RBAC (FastAPI bootstrap, Auth, Next.js App Shell)
 - **Phase 2**: Redmine Integration & Data Synchronization Engine (Discovery, watermark sync, cache)
 - **Phase 3**: Core Role-Based Dashboards & Work Management (Company, Project, Team, Employee 360)
-- **Phase 4**: Notification Engine & Google Chat Integration (In-app bar + Admin Google Chat Mirroring)
+- **Phase 4**: Notification Engine & SMTP Email Alerting (In-app bar + urgent/critical email to the Administrator)
 - **Phase 5**: AI Company Assistant (OpenRouter + Deterministic Tool Registry + RBAC Grounding)
 - **Phase 6**: Reports, Analytics & Employee Growth (Export engine, skill matrix)
 - **Phase 7**: QA Validation, Security Auditing & Production Hardening

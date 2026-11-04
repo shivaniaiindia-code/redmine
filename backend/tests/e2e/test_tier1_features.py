@@ -469,8 +469,8 @@ async def test_admin_get_recipient_config_defaults(client: AsyncClient, admin_he
     data = response.json()
     assert data["recipient_email"] == "anil.aiindia@gmail.com"
     assert "in_app_enabled" in data
-    assert "google_chat_enabled" in data
     assert "email_enabled" in data
+    assert "google_chat_enabled" not in data  # legacy Google Chat dispatch removed (M3)
 
 @pytest.mark.asyncio
 async def test_admin_update_recipient_email(client: AsyncClient, admin_headers: dict):
@@ -498,9 +498,9 @@ async def test_admin_toggle_notification_channels(client: AsyncClient, admin_hea
     assert response.json()["email_enabled"] is True
 
 @pytest.mark.asyncio
-async def test_admin_update_google_chat_webhook_url(client: AsyncClient, admin_headers: dict):
-    """Tier 1.8: Verify setting or clearing Google Chat webhook URL."""
+async def test_admin_rejects_legacy_google_chat_fields_silently(client: AsyncClient, admin_headers: dict):
+    """Tier 1.8: Legacy Google Chat webhook settings are no longer part of the admin contract (M3)."""
     payload = {"google_chat_webhook_url": "https://chat.googleapis.com/v1/spaces/TEST/messages"}
     response = await client.put("/api/v1/admin/recipient-config", headers=admin_headers, json=payload)
     assert response.status_code == 200
-    assert "googleapis.com" in response.json()["google_chat_webhook_url"]
+    assert "google_chat_webhook_url" not in response.json()
