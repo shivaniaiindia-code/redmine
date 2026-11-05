@@ -13,6 +13,7 @@ Complete technical specifications and multi-agent development blueprints are doc
 2. **[Database Design & ERD](./docs/DATABASE_DESIGN.md)**: Complete PostgreSQL entity relationship diagram, schema definitions, indexing, and historical preservation strategy.
 3. **[Redmine Integration & Data Mapping](./docs/REDMINE_DATA_MAPPING.md)**: API discovery protocol, data mapping matrices, watermark delta synchronization, and rate-limiting resilience.
 4. **[Notification Rules & Google Chat Integration](./docs/NOTIFICATION_RULES.md)**: Severity tiers, rule triggers, escalation matrix, and Google Chat Cards v2 webhook architecture.
+
 5. **[AI Agent & Grounded Retrieval](./docs/AI_AGENT_ARCHITECTURE.md)**: OpenRouter multi-model gateway, deterministic tool calling, RBAC-aware context retrieval, and zero-hallucination citations.
 6. **[API Design & Specifications](./docs/API_DESIGN.md)**: Modular FastAPI REST API routing tree, response envelopes, and RBAC dependency guards.
 7. **[Phased Implementation Roadmap](./docs/IMPLEMENTATION_PLAN.md)**: Phase-by-phase delivery plan governed by the 7 specialized engineering agents.
