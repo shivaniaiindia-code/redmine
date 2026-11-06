@@ -40,7 +40,7 @@ Development and code modifications must respect the responsibilities of the **7 
 
 1. **Admin SMTP Email Alerting Mandate** (replaced Google Chat mirroring, 2026-11-03):
    - Every notification is recorded in the **System Notification Bar** (in-app header bar, notification drawer, bell badge).
-   - Every **URGENT** and **CRITICAL** notification **MUST** be delivered by SMTP email to the designated administrator (default `anil.aiindia@gmail.com`, configurable in Administration). Google Chat dispatch has been removed.
+   - Every **URGENT** and **CRITICAL** notification **MUST** be delivered by SMTP email to the designated administrator (default `connect.aiindia@gmail.com`, configurable in Administration). Google Chat dispatch has been removed.
    - Emails must include full event metadata, severity tagging, and a deep link back to the platform. Every delivery attempt is tracked in `notification_deliveries` (`EMAIL_SMTP`: SENT / FAILED / NOT_CONFIGURED / DISABLED).
    - SMTP credentials live only in `backend/.env`; they are never stored in the database or returned by the API.
 2. **Dual-Intelligence Principle**:

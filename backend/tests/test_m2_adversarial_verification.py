@@ -42,7 +42,7 @@ async def test_adversarial_teams_zero_empty_cards_and_exact_memberships(client: 
     ai_member_map = {m["name"].lower(): m["role"] for m in ai_members}
     
     expected_ai_members = {
-        "anil abhange": "aiinvoice",
+        "abhange": "aiinvoice",
         "prajwal abhang": "aiinvoice",
         "ragini thorat": "aiinvoice",
         "shivani patil": "aiinvoice",
@@ -58,7 +58,7 @@ async def test_adversarial_teams_zero_empty_cards_and_exact_memberships(client: 
     anpr_member_map = {m["name"].lower(): m["role"] for m in anpr_members}
 
     expected_anpr_members = {
-        "anil abhange": "speech-ASR",
+        "abhange": "speech-ASR",
         "harshada kupate": "speech-ASR",
         "shivani patil": "speech-ASR"
     }

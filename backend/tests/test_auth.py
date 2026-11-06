@@ -46,7 +46,7 @@ async def test_get_me(client: AsyncClient):
     user_data = response.json()
     assert user_data["email"] == "admin@aiindia.com"
     assert user_data["role"]["name"] == "SUPER_ADMIN"
-    assert user_data["employee"]["first_name"] == "Anil"
+    assert user_data["employee"]["first_name"] == "Administrator"
 
 @pytest.mark.asyncio
 async def test_register_and_list_users(client: AsyncClient):

@@ -46,14 +46,14 @@ The Intelligent Projects Manager platform has been brought from an unanchored st
 
 ## 2. Environment & Live Credentials
 
-- **Workspace Root**: `c:\Users\Anil Abhange\Downloads\intelligent_projects_manager`
+- **Workspace Root**: `e:\intelligent_projects_manager`
 - **Backend Directory**: `backend/`
 - **Frontend Directory**: `frontend/`
 - **Active Database**: `backend/company_intel.db` (SQLite with WAL mode enabled)
 - **Python Virtualenv**: `backend/venv/Scripts/python.exe`
 - **Redmine Instance**: `https://redmine.aiindia.ai`
 - **Redmine Admin API Key**: `47cc9f603630e16fcb6f73e99a1111c59d080f18`
-- **Default Alert Recipient**: `anil.aiindia@gmail.com`
+- **Default Alert Recipient**: `connect.aiindia@gmail.com`
 - **OpenRouter AI Gateway**: `https://openrouter.ai/api/v1/chat/completions`
 - **OpenRouter Model**: `qwen/qwen3.5-flash-02-23`
 - **OpenRouter API Key**: Pre-configured in `backend/.env` (`sk-or-v1-95fe...`)
@@ -66,22 +66,22 @@ Any Claude agent taking over can immediately verify system health with these com
 
 ```powershell
 # 1. Run all 109 Backend Tests (Pytest)
-cd "c:\Users\Anil Abhange\Downloads\intelligent_projects_manager\backend"
+cd "e:\intelligent_projects_manager\backend"
 .\venv\Scripts\pytest tests -v
 # Expected: 109 passed in ~170s, exit code 0
 
 # 2. Run Standalone E2E Runner (57 Tests)
-cd "c:\Users\Anil Abhange\Downloads\intelligent_projects_manager\backend"
+cd "e:\intelligent_projects_manager\backend"
 .\venv\Scripts\python run_e2e_tests.py
 # Expected: 57 passed, exit code 0
 
 # 3. Verify Frontend Linting
-cd "c:\Users\Anil Abhange\Downloads\intelligent_projects_manager\frontend"
+cd "e:\intelligent_projects_manager\frontend"
 npm run lint
 # Expected: 0 errors, exit code 0
 
 # 4. Verify Frontend Production Build
-cd "c:\Users\Anil Abhange\Downloads\intelligent_projects_manager\frontend"
+cd "e:\intelligent_projects_manager\frontend"
 npm run build
 # Expected: "Compiled successfully", 5/5 static pages, exit code 0
 ```
@@ -95,7 +95,7 @@ Per user directive, the remaining milestones are documented with exact file path
 ### Milestone 3: Notification Engine & SMTP Email Alerting (Requirement R2)
 
 #### Objective
-Streamline notifications by removing legacy dispatch cards, adding category filter pills in the UI modal, and delivering all `CRITICAL` and `URGENT` alerts exclusively via SMTP to `anil.aiindia@gmail.com`.
+Streamline notifications by removing legacy dispatch cards, adding category filter pills in the UI modal, and delivering all `CRITICAL` and `URGENT` alerts exclusively via SMTP to `connect.aiindia@gmail.com`.
 
 #### Backend Implementation (`backend/`):
 1. **Add SMTP Configuration (`backend/app/core/config.py` & `backend/.env`)**:
@@ -107,7 +107,7 @@ Streamline notifications by removing legacy dispatch cards, adding category filt
    SMTP_PASSWORD: str = ""
    SMTP_USE_TLS: bool = True
    SMTP_FROM_EMAIL: str = "notifications@companyintel.ai"
-   DEFAULT_ALERT_EMAIL: str = "anil.aiindia@gmail.com"
+   DEFAULT_ALERT_EMAIL: str = "connect.aiindia@gmail.com"
    ```
 2. **Implement Email Service (`backend/app/services/email_service.py`)**:
    Create an asynchronous email dispatcher:
@@ -142,8 +142,8 @@ Streamline notifications by removing legacy dispatch cards, adding category filt
    - In `create_and_dispatch`:
      ```python
      if severity in ["URGENT", "CRITICAL"]:
-         # Deliver exclusively to anil.aiindia@gmail.com
-         # Record NotificationDelivery with channel="EMAIL_SMTP", destination="anil.aiindia@gmail.com"
+         # Deliver exclusively to connect.aiindia@gmail.com
+         # Record NotificationDelivery with channel="EMAIL_SMTP", destination="connect.aiindia@gmail.com"
          # Mark status="SENT" or "FAILED"
      ```
    - Standard `INFO` and `WARNING` notifications remain in-app only and **do not trigger SMTP emails**.
@@ -167,7 +167,7 @@ Streamline notifications by removing legacy dispatch cards, adding category filt
 2. **Streamline `frontend/src/components/views/AdminView.tsx`**:
    - Remove legacy Google Chat Webhook URL input and "Dispatch Channels" card (lines 183–320).
    - Replace Card 4 with a dedicated **SMTP Email Alerting Engine** card displaying:
-     - Recipient: `anil.aiindia@gmail.com`
+     - Recipient: `connect.aiindia@gmail.com`
      - SMTP Server host and port
      - TLS active status
      - "Send Test Alert Email" trigger button calling `POST /api/v1/admin/smtp-test`.
@@ -207,18 +207,18 @@ Ensure the AI Assistant provides zero-hallucination, grounded answers regarding 
      - Redmine API (`connected`, `url`, `last_synced_at`, `active_projects_count`)
      - OpenRouter AI (`model`, `connected`, `zero_hallucination_active`)
      - SMTP Email Alerting (`host`, `recipient_email`, `status`)
-   - Implement `POST /api/v1/admin/smtp-test` to test email sending to `anil.aiindia@gmail.com`.
+   - Implement `POST /api/v1/admin/smtp-test` to test email sending to `connect.aiindia@gmail.com`.
 
 #### Frontend Implementation (`frontend/`):
 1. **Modernize `AdminView.tsx`**:
    - Present a clean 4-card operational dashboard:
      - **Card 1**: Redmine Synchronization Engine (status, manual sync button, sync stats).
-     - **Card 2**: SMTP Email Alerting Engine (recipient: `anil.aiindia@gmail.com`, test email button).
+     - **Card 2**: SMTP Email Alerting Engine (recipient: `connect.aiindia@gmail.com`, test email button).
      - **Card 3**: OpenRouter AI Assistant (model: `qwen/qwen3.5-flash-02-23`, deterministic status).
      - **Card 4**: Automated Alerts Scanner (overdue/blocker scanner, manual scan button).
 2. **AI Assistant Drawer (`frontend/src/components/AIAssistantDrawer.tsx`)**:
    - Verify sample prompts:
-     - *"What projects is Anil Abhange currently working on?"*
+     - *"What projects is the team currently working on?"*
      - *"What is the live status and health of the MILIT ANPR System?"*
    - Verify that citations render as clickable navigation links.
 
@@ -241,7 +241,7 @@ Run complete verification across the entire platform, pass 100% of automated tes
      - Teams view displays project-wise member cards with roles.
      - Employees view displays workload bars and project assignment pills.
      - Tasks view shows original Redmine timestamps.
-     - Urgent/Critical alert sends an email to `anil.aiindia@gmail.com`.
+     - Urgent/Critical alert sends an email to `connect.aiindia@gmail.com`.
      - AI assistant answers project assignment queries deterministically.
 
 ---
@@ -283,7 +283,7 @@ For reference, the following files were touched and verified during Milestones 1
 - **Rule 1**: Maintain database path anchoring. Never introduce relative `sqlite://./` paths.
 - **Rule 2**: Never fabricate mock data in production endpoints. All data must originate from `company_intel.db` or live Redmine.
 - **Rule 3**: In `TeamsView.tsx` and `EmployeesView.tsx`, always filter inactive projects (`Project.status != "INACTIVE"`) when displaying current delivery teams and calculating active workloads.
-- **Rule 4**: In Milestone 3, deliver urgent and critical alerts exclusively to `anil.aiindia@gmail.com` via SMTP, while keeping standard notifications in-app only.
+- **Rule 4**: In Milestone 3, deliver urgent and critical alerts exclusively to `connect.aiindia@gmail.com` via SMTP, while keeping standard notifications in-app only.
 - **Rule 5**: In Milestone 4, AI responses must be strictly grounded in the database context without hallucinating employee allocations or task counts.
 
 *Document compiled and certified by Teamwork Orchestrator.*
@@ -295,7 +295,7 @@ For reference, the following files were touched and verified during Milestones 1
 **M3 and M4 are implemented and verified.** Verification: `pytest tests` → 116 passed; `run_e2e_tests.py` → all 4 tiers pass; `npm run lint` → 0 errors / 0 warnings; `npm run build` → clean.
 
 Deviations from the blueprint above (decided with the user):
-- **Recipients are a list, not a single address (supersedes Rule 4).** Administration → *Email Recipients* lets anyone be added. Each recipient chooses `ALL` (every notification, same as the notification bar) or `URGENT_CRITICAL`. `anil.aiindia@gmail.com` is seeded as the first recipient with `URGENT_CRITICAL`. The last active recipient cannot be removed/paused. API: `GET/POST /admin/email-recipients`, `PATCH/DELETE /admin/email-recipients/{id}`, `POST /admin/email-recipients/{id}/test`.
+- **Recipients are a list, not a single address (supersedes Rule 4).** Administration → *Email Recipients* lets anyone be added. Each recipient chooses `ALL` (every notification, same as the notification bar) or `URGENT_CRITICAL`. `connect.aiindia@gmail.com` is seeded as the first recipient with `URGENT_CRITICAL`. The last active recipient cannot be removed/paused. API: `GET/POST /admin/email-recipients`, `PATCH/DELETE /admin/email-recipients/{id}`, `POST /admin/email-recipients/{id}/test`.
 - **Google Chat dispatch removed entirely** (CLAUDE.md rule #1 updated accordingly).
 - Endpoint names: `/admin/integrations` + `/admin/smtp/test`; the blueprint names `/admin/settings` and `/admin/smtp-test` exist as aliases.
 - Category filter also exposes `info`; `GET /notifications/summary` provides pill counts. Extra alert rules: Redmine priority Immediate/Urgent escalation, completed/closed tasks (last 7 days). Repeat alerts per entity+rule are suppressed for 24h even after "mark read".

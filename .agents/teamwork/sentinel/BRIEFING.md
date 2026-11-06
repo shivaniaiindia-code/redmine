@@ -5,7 +5,7 @@ Oversee task interview, route the approved prompt, monitor orchestrator executio
 
 ## 🔒 My Identity
 - Archetype: sentinel
-- Working directory: c:\Users\Anil Abhange\Downloads\intelligent_projects_manager\.agents\teamwork\sentinel
+- Working directory: e:\intelligent_projects_manager\.agents\teamwork\sentinel
 - Orchestrator: 797d74c2-a70d-48f3-87bb-02fd6b60d98d
 - Victory Auditor: [to be spawned on victory claim]
 
@@ -13,7 +13,7 @@ Oversee task interview, route the approved prompt, monitor orchestrator executio
 - No technical decisions — relay only
 - Victory Audit is MANDATORY before reporting completion
 - R1: Live Redmine Data Synchronization & UI Visibility (Projects, Teams, Employees, Tasks, auto/manual sync)
-- R2: Notification Engine & SMTP Email Alerting to anil.aiindia@gmail.com (remove legacy dispatch settings, add filter pills)
+- R2: Notification Engine & SMTP Email Alerting to connect.aiindia@gmail.com (remove legacy dispatch settings, add filter pills)
 - R3: AI Assistant Integration (deterministic tool access, zero hallucination)
 - R4: Administration & Integration (production-ready)
 

@@ -13,7 +13,7 @@ from app.models.task import Task
 from app.services.alert_composer import AlertComposer, alert_composer
 from app.services.notification_service import notification_service
 
-ADMIN = "anil.aiindia@gmail.com"
+ADMIN = "connect.aiindia@gmail.com"
 
 
 @pytest.fixture
@@ -25,7 +25,7 @@ def smtp_on(monkeypatch):
 @pytest_asyncio.fixture
 async def overdue_task(db_session):
     await db_session.execute(delete(AlertEmailRecipient))
-    db_session.add(AlertEmailRecipient(email=ADMIN, name="Anil (Administrator)", notify_scope="URGENT_CRITICAL"))
+    db_session.add(AlertEmailRecipient(email=ADMIN, name="Administrator", notify_scope="URGENT_CRITICAL"))
     proj = (await db_session.execute(select(Project).where(Project.status == "ACTIVE").limit(1))).scalars().first()
     t = Task(project_id=proj.id, title="Composer probe task", status="New", priority="High",
              due_date=date.today() - timedelta(days=6))

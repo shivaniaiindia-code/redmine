@@ -2,7 +2,7 @@
 SMTP Email Alerting Service.
 
 URGENT and CRITICAL alerts are delivered to the designated administrator
-(default: anil.aiindia@gmail.com) by SMTP email. Credentials come from
+(default: connect.aiindia@gmail.com) by SMTP email. Credentials come from
 backend/.env only (never stored in the database, never returned by the API).
 """
 import asyncio

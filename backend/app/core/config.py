@@ -50,8 +50,8 @@ class Settings(BaseSettings):
     
     # Default Alert Recipient (configurable from Admin Settings)
     # All system-generated alerts (employee, project, task, team, company) route here.
-    DEFAULT_ALERT_EMAIL: str = "anil.aiindia@gmail.com"
-    DEFAULT_ALERT_NAME: str = "Anil (Administrator)"
+    DEFAULT_ALERT_EMAIL: str = "connect.aiindia@gmail.com"
+    DEFAULT_ALERT_NAME: str = "Administrator"
     
     # Redmine Integration
     REDMINE_URL: str = ""

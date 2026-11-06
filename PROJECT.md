@@ -6,7 +6,7 @@
 - **External Integrations**:
   - Live Redmine REST API (`https://redmine.aiindia.ai`, API key: `d1dff27e7aa00ff795adb4bc24ac8a6005046a75`).
   - OpenRouter AI Gateway (Model: `qwen/qwen3.5-flash-02-23`).
-  - SMTP Email Alerting Server (Destination: `anil.aiindia@gmail.com`).
+  - SMTP Email Alerting Server (Destination: `connect.aiindia@gmail.com`).
 
 ## Feature Inventory
 | # | Feature | Description | Milestone | Source |
@@ -20,7 +20,7 @@
 | 7 | Tasks View Timestamps & Statuses | Expose original Redmine timestamps in `api/v1/tasks.py` and render in `TasksView.tsx` with full status categorization | M2 | Survey |
 | 8 | Global Sync Trigger & Empty State Guard | Add global "Sync Redmine Now" trigger, cross-tab cache refresh, and distinct error reporting in `ProjectsView.tsx` | M2 | Survey |
 | 9 | Frontend Lint & API URL Config | Fix `eslint.config.mjs` ESM imports (`.js`) and centralize API URL via `NEXT_PUBLIC_API_URL` | M2 | Survey |
-| 10 | SMTP Email Alerting Service | Implement backend SMTP client delivering all `CRITICAL` and `URGENT` alerts exclusively to `anil.aiindia@gmail.com` with `EMAIL_SMTP` tracking | M3 | Survey |
+| 10 | SMTP Email Alerting Service | Implement backend SMTP client delivering all `CRITICAL` and `URGENT` alerts exclusively to `connect.aiindia@gmail.com` with `EMAIL_SMTP` tracking | M3 | Survey |
 | 11 | Notification UI Streamlining | Add category filter pills (`All`, `Critical`, `Urgent`, `Completed / Closed`) and remove legacy custom dispatch cards in `NotificationModal.tsx` and `AdminView.tsx` | M3 | Survey |
 | 12 | AI Assistant Grounding | Enrich `ai_service.py` with all active tasks, project memberships, and employee assignments for deterministic zero-hallucination answers | M4 | Survey |
 | 13 | Administration Settings & Cards | Add dedicated admin settings endpoints (`/admin/settings`, `/admin/smtp-config`, `/admin/smtp-test`) and modernize `AdminView.tsx` into a 4-card management view | M4 | Survey |
@@ -31,7 +31,7 @@
 |---|------|-------|-------------|--------|
 | M1 | Live Redmine Sync & Backend Data Engine | Features 1, 2, 3, 4: Absolute DB path, memberships sync, original timestamps, pagination, and backend test hygiene | none | DONE |
 | M2 | Primary Dashboard Views & Data Visibility | Features 5, 6, 7, 8, 9: Project-wise Teams view, Employee 360 allocations & workload gauge, Tasks view timestamps, global sync trigger, lint fix | M1 | DONE |
-| M3 | Notification Engine & SMTP Email Alerting | Features 10, 11: SMTP email service for urgent/critical to `anil.aiindia@gmail.com`, notification category filter tabs, remove legacy dispatch forms | M1 | PLANNED |
+| M3 | Notification Engine & SMTP Email Alerting | Features 10, 11: SMTP email service for urgent/critical to `connect.aiindia@gmail.com`, notification category filter tabs, remove legacy dispatch forms | M1 | PLANNED |
 | M4 | AI Assistant & Administration Configuration | Features 12, 13: Grounded AI assistant for employee project assignments and live project statuses, admin settings API and 4-card management view | M1, M2, M3 | PLANNED |
 | M5 | E2E Verification & Hardening | Feature 14: Full test suite verification (pytest, npm run build/lint, live sync validation) | M1, M2, M3, M4 | PLANNED |
 
@@ -52,7 +52,7 @@
       "members_count": 3,
       "members": [
         {"employee_id": "...", "name": "shivani Patil", "email": "...", "role": "speech-ASR"},
-        {"employee_id": "...", "name": "anil abhange", "email": "anil.aiindia@gmail.com", "role": "speech-ASR"},
+        {"employee_id": "...", "name": "Team Member", "email": "connect.aiindia@gmail.com", "role": "speech-ASR"},
         {"employee_id": "...", "name": "harshada kupate", "email": "...", "role": "speech-ASR"}
       ]
     }
@@ -96,7 +96,7 @@
     }
   ]
   ```
-- `POST /api/v1/notifications/generate-alerts`: Triggers automated scan. Urgent/Critical alerts deliver SMTP email to `anil.aiindia@gmail.com`.
+- `POST /api/v1/notifications/generate-alerts`: Triggers automated scan. Urgent/Critical alerts deliver SMTP email to `connect.aiindia@gmail.com`.
 - `GET /api/v1/notifications/`: Supports query param `category=all|critical|urgent|completed`.
 - `POST /api/v1/ai/chat`: Answers employee assignment and project status queries deterministically with zero hallucination.
 

@@ -139,7 +139,7 @@ async def test_pending_user_cannot_approve_themselves(anon_client):
 @pytest.mark.asyncio
 async def test_password_signup_with_owner_email_gets_no_admin_rights(anon_client, db_session):
     """An unverified password sign-up never becomes SUPER_ADMIN, whatever the email."""
-    email = f"anil.aiindia+{uuid.uuid4().hex[:6]}@gmail.com"
+    email = f"connect.aiindia+{uuid.uuid4().hex[:6]}@gmail.com"
     res = await anon_client.post(API + "/auth/register", json={
         "email": email, "password": "Password123!", "first_name": "X", "last_name": "Y"})
     me = (await anon_client.get(API + "/auth/me", headers=_auth(res.json()["access_token"]))).json()
@@ -301,7 +301,7 @@ def test_migration_renames_root_admin(tmp_path):
         conn.execute(sa.text("INSERT INTO users (id, email, hashed_password, role_id, is_active, approval_status, created_at, updated_at) "
                              "VALUES ('root', 'admin@company.com', 'x', 'r1', 1, 'APPROVED', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"))
         conn.execute(sa.text("INSERT INTO employees (id, user_id, employee_number, first_name, last_name, email, job_title, department, hire_date, status, weekly_capacity_hours, created_at, updated_at) "
-                             "VALUES ('e1', 'root', 'EMP-001', 'Anil', 'Abhange', 'admin@company.com', 'Super Admin', 'Engineering', CURRENT_DATE, 'ACTIVE', 40, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"))
+                             "VALUES ('e1', 'root', 'EMP-001', 'Administrator', '', 'admin@company.com', 'Super Admin', 'Engineering', CURRENT_DATE, 'ACTIVE', 40, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)"))
     with engine.begin() as conn:
         cfg.attributes["connection"] = conn
         command.upgrade(cfg, "0005")

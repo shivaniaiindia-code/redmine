@@ -84,8 +84,8 @@ async def init_db():
         admin_employee = Employee(
             user_id=admin_user.id,
             employee_number="EMP-001",
-            first_name="Anil",
-            last_name="Abhange",
+            first_name="Administrator",
+            last_name="",
             email=ROOT_ADMIN_EMAIL,
             job_title="Super Admin",
             department="Engineering",
@@ -115,7 +115,7 @@ async def init_db():
         # No mock or demonstration entities are seeded.
 
         # Seed the default alert recipient configuration
-        print("Seeding default alert recipient config (anil.aiindia@gmail.com)...")
+        print("Seeding default alert recipient config (connect.aiindia@gmail.com)...")
         alert_config = AlertRecipientConfig(
             label="Default Admin Recipient",
             recipient_email=settings.DEFAULT_ALERT_EMAIL,

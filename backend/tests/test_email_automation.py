@@ -27,7 +27,7 @@ from app.services import scheduled_reports as sr
 from app.services.email_service import EmailService, REASON_ASSIGNEE, REASON_MANAGER
 from app.services.notification_service import MAX_EMAIL_ATTEMPTS, notification_service
 
-ADMIN_EMAIL = "anil.aiindia@gmail.com"
+ADMIN_EMAIL = "connect.aiindia@gmail.com"
 IST = ZoneInfo("Asia/Kolkata")
 
 
@@ -46,7 +46,7 @@ def smtp_configured(monkeypatch):
 async def baseline(db_session):
     """One admin recipient, routing off, schedule at defaults; scheduled-run log cleared."""
     await db_session.execute(delete(AlertEmailRecipient))
-    db_session.add(AlertEmailRecipient(email=ADMIN_EMAIL, name="Anil (Administrator)",
+    db_session.add(AlertEmailRecipient(email=ADMIN_EMAIL, name="Administrator",
                                        notify_scope="URGENT_CRITICAL", is_active=True))
     await db_session.execute(delete(ScheduledEmailRun))
     cfg = await _config(db_session)
@@ -288,7 +288,7 @@ async def test_digest_content_uses_live_figures(db_session):
     built = await sr.build(db_session, sr.KIND_DAILY)
     f = built["facts"]
     assert set(f) >= {"right_now", "since_yesterday", "overdue", "due_soon", "projects_needing_attention", "free_today"}
-    subject, body, text = sr.render_daily(f, built["summary"], "Hi Anil,", built["label"])
+    subject, body, text = sr.render_daily(f, built["summary"], "Hi Administrator,", built["label"])
     assert f'{f["right_now"]["overdue_tasks"]} overdue' in subject
     assert "Open Dashboard" in body and "SMTP" not in body and "OpenRouter" not in body
 

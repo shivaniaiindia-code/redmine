@@ -39,8 +39,8 @@ async def test_challenge_teams_active_members_and_roles_fidelity(client: AsyncCl
     # Verify key employees are members of these teams
     ai_member_names = {m["name"].lower() for m in ai_members}
     anpr_member_names = {m["name"].lower() for m in anpr_members}
-    assert "anil abhange" in ai_member_names, "anil abhange missing from aiinvoice team"
-    assert "anil abhange" in anpr_member_names, "anil abhange missing from MILIT ANPR team"
+    assert "abhange" in ai_member_names, "abhange missing from aiinvoice team"
+    assert "abhange" in anpr_member_names, "abhange missing from MILIT ANPR team"
     assert "shivani patil" in ai_member_names, "shivani patil missing from aiinvoice team"
     assert "shivani patil" in anpr_member_names, "shivani patil missing from MILIT ANPR team"
 
@@ -74,7 +74,7 @@ async def test_challenge_teams_no_empty_cards(client: AsyncClient, admin_token: 
 async def test_challenge_employees_workload_formula_and_project_allocations(client: AsyncClient, admin_token: str):
     """
     Milestone 2 Challenge:
-    Verify employees assigned to projects (e.g. anil abhange, shivani Patil) have
+    Verify employees assigned to projects (e.g. abhange, shivani Patil) have
     current_projects populated, allocated hours, and accurate workload scores matching:
       Workload Score = (Allocated Hours / Weekly Capacity) * (1 + 0.15 * (Active Projects - 1))
     """
@@ -86,19 +86,19 @@ async def test_challenge_employees_workload_formula_and_project_allocations(clie
 
     emp_by_name = {e["name"].lower(): e for e in employees}
 
-    # 1. Check anil abhange
-    assert "anil abhange" in emp_by_name, "anil abhange missing from employee roster"
-    anil = emp_by_name["anil abhange"]
-    assert len(anil["current_projects"]) >= 2, f"Expected anil abhange to have at least 2 projects, got {len(anil['current_projects'])}"
-    anil_proj_names = [p["name"].lower() for p in anil["current_projects"]]
-    assert any("aiinvoice" in n for n in anil_proj_names), "aiinvoice missing from anil abhange projects"
-    assert any("milit" in n for n in anil_proj_names), "MILIT ANPR missing from anil abhange projects"
-    assert anil["allocated_hours"] > 0, f"Expected allocated hours for anil abhange, got {anil['allocated_hours']}"
+    # 1. Check abhange
+    assert "abhange" in emp_by_name, "abhange missing from employee roster"
+    emp_record = emp_by_name["abhange"]
+    assert len(emp_record["current_projects"]) >= 2, f"Expected abhange to have at least 2 projects, got {len(emp_record['current_projects'])}"
+    emp_proj_names = [p["name"].lower() for p in emp_record["current_projects"]]
+    assert any("aiinvoice" in n for n in emp_proj_names), "aiinvoice missing from abhange projects"
+    assert any("milit" in n for n in emp_proj_names), "MILIT ANPR missing from abhange projects"
+    assert emp_record["allocated_hours"] > 0, f"Expected allocated hours for abhange, got {emp_record['allocated_hours']}"
     # Formula: (allocated / capacity) * (1 + 0.15 * (projects - 1))
-    expected_anil_score = round((anil["allocated_hours"] / anil["weekly_capacity_hours"])
-                                * (1 + 0.15 * (len(anil["current_projects"]) - 1)), 2)
-    assert anil["workload_score"] == expected_anil_score, (
-        f"Workload score mismatch for anil abhange: expected {expected_anil_score}, got {anil['workload_score']}"
+    expected_score = round((emp_record["allocated_hours"] / emp_record["weekly_capacity_hours"])
+                                * (1 + 0.15 * (len(emp_record["current_projects"]) - 1)), 2)
+    assert emp_record["workload_score"] == expected_score, (
+        f"Workload score mismatch for abhange: expected {expected_score}, got {emp_record['workload_score']}"
     )
 
     # 2. Check shivani patil

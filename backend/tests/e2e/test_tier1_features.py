@@ -467,7 +467,7 @@ async def test_admin_get_recipient_config_defaults(client: AsyncClient, admin_he
     response = await client.get("/api/v1/admin/recipient-config", headers=admin_headers)
     assert response.status_code == 200
     data = response.json()
-    assert data["recipient_email"] == "anil.aiindia@gmail.com"
+    assert data["recipient_email"] == "connect.aiindia@gmail.com"
     assert "in_app_enabled" in data
     assert "email_enabled" in data
     assert "google_chat_enabled" not in data  # legacy Google Chat dispatch removed (M3)
@@ -475,18 +475,18 @@ async def test_admin_get_recipient_config_defaults(client: AsyncClient, admin_he
 @pytest.mark.asyncio
 async def test_admin_update_recipient_email(client: AsyncClient, admin_headers: dict):
     """Tier 1.8: Verify PUT /api/v1/admin/recipient-config updates recipient email."""
-    update_payload = {"recipient_email": "anil.aiindia@gmail.com"}
+    update_payload = {"recipient_email": "connect.aiindia@gmail.com"}
     response = await client.put("/api/v1/admin/recipient-config", headers=admin_headers, json=update_payload)
     assert response.status_code == 200
-    assert response.json()["recipient_email"] == "anil.aiindia@gmail.com"
+    assert response.json()["recipient_email"] == "connect.aiindia@gmail.com"
 
 @pytest.mark.asyncio
 async def test_admin_update_recipient_name(client: AsyncClient, admin_headers: dict):
     """Tier 1.8: Verify updating recipient name persists."""
-    update_payload = {"recipient_name": "Anil Abhange (Lead Admin)"}
+    update_payload = {"recipient_name": "Lead Admin"}
     response = await client.put("/api/v1/admin/recipient-config", headers=admin_headers, json=update_payload)
     assert response.status_code == 200
-    assert response.json()["recipient_name"] == "Anil Abhange (Lead Admin)"
+    assert response.json()["recipient_name"] == "Lead Admin"
 
 @pytest.mark.asyncio
 async def test_admin_toggle_notification_channels(client: AsyncClient, admin_headers: dict):

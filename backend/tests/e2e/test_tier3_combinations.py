@@ -154,8 +154,8 @@ async def test_cross_admin_config_update_affects_notification_dispatch(client: A
     2. Trigger new notification
     3. Verify notification delivery destination references the updated recipient email
     """
-    target_email = "anil.aiindia@gmail.com"
-    target_name = "Anil Admin Verification"
+    target_email = "connect.aiindia@gmail.com"
+    target_name = "Admin Verification"
     
     update_resp = await client.put(
         "/api/v1/admin/recipient-config",

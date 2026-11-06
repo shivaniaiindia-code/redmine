@@ -33,7 +33,7 @@ from app.schemas.auth import (
 )
 
 # Verified identities that bootstrap the platform owner account (Google-verified only)
-BOOTSTRAP_SUPER_ADMINS = {"anil.aiindia@gmail.com", ROOT_ADMIN_EMAIL}
+BOOTSTRAP_SUPER_ADMINS = {"connect.aiindia@gmail.com", ROOT_ADMIN_EMAIL}
 # Roles Company Management may grant when approving; SUPER_ADMIN may grant any role
 MANAGEMENT_GRANTABLE_ROLES = {"EMPLOYEE", "TEAM_LEAD", "PROJECT_MANAGER"}
 

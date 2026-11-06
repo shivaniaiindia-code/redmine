@@ -145,7 +145,7 @@ Alerts dispatched to Google Chat use modern **Cards v2** schema with clean forma
             "widgets": [
               {
                 "decoratedText": {
-                  "topLabel": "Recipient: Anil Abhange (Lead Architect)",
+                  "topLabel": "Recipient: Lead Architect",
                   "text": "<b>Task #482 [API Auth Middleware] is 3 days overdue</b>",
                   "bottomLabel": "Project: Intelligent Projects Manager"
                 }

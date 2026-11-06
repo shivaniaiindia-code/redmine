@@ -29,7 +29,7 @@ from app.services.notification_service import (
     notification_service, categorize, PREFIX_COMPLETED, PREFIX_OVERDUE,
 )
 
-ADMIN_EMAIL = "anil.aiindia@gmail.com"
+ADMIN_EMAIL = "connect.aiindia@gmail.com"
 
 
 # ---------------------------------------------------------------------- #
@@ -47,7 +47,7 @@ def smtp_configured(monkeypatch):
 async def only_admin_recipient(db_session):
     """Every test starts with exactly one email recipient: the admin, urgent & critical only."""
     await db_session.execute(delete(AlertEmailRecipient))
-    db_session.add(AlertEmailRecipient(email=ADMIN_EMAIL, name="Anil (Administrator)",
+    db_session.add(AlertEmailRecipient(email=ADMIN_EMAIL, name="Administrator",
                                        notify_scope="URGENT_CRITICAL", is_active=True))
     await db_session.commit()
     yield
@@ -174,7 +174,7 @@ def test_categorize_maps_severity_and_completion():
 
 def test_alert_email_message_contents(smtp_configured):
     msg = EmailService.build_alert_message(
-        to_email=ADMIN_EMAIL, to_name="Anil", title="Overdue Task: <Deploy>",
+        to_email=ADMIN_EMAIL, to_name="Administrator", title="Overdue Task: <Deploy>",
         message="Due 2026-10-01 & late", severity="CRITICAL", entity_type="TASK",
         created_at_label="2026-11-03 10:00 UTC", deep_link="http://localhost:3000/?id=1&x=2",
     )
@@ -193,7 +193,7 @@ def test_alert_email_message_contents(smtp_configured):
 async def test_send_returns_not_configured_without_credentials(monkeypatch, email_outbox):
     monkeypatch.setattr(settings, "SMTP_USERNAME", "")
     monkeypatch.setattr(settings, "SMTP_PASSWORD", "")
-    res = await email_service.send_alert(ADMIN_EMAIL, "Anil", "t", "m", "URGENT", "TASK", "now", "http://x")
+    res = await email_service.send_alert(ADMIN_EMAIL, "Administrator", "t", "m", "URGENT", "TASK", "now", "http://x")
     assert res.success is False and res.status == "NOT_CONFIGURED"
     assert email_outbox == []
 
@@ -204,7 +204,7 @@ async def test_send_returns_not_configured_without_credentials(monkeypatch, emai
 @pytest.mark.asyncio
 async def test_real_smtp_protocol_delivery_to_admin(local_smtp):
     res = await email_service.send_alert(
-        ADMIN_EMAIL, "Anil (Administrator)", "Blocker Alert: ANPR pipeline", "Task is blocked",
+        ADMIN_EMAIL, "Administrator", "Blocker Alert: ANPR pipeline", "Task is blocked",
         "CRITICAL", "TASK", "2026-11-03 10:00 UTC", "http://localhost:3000/?notifications=open",
     )
     assert res.success is True, res.detail
@@ -217,7 +217,7 @@ async def test_real_smtp_protocol_delivery_to_admin(local_smtp):
 @pytest.mark.asyncio
 async def test_real_smtp_bad_password_reports_auth_failure(local_smtp, monkeypatch):
     monkeypatch.setattr(settings, "SMTP_PASSWORD", "wrong-password")
-    res = await email_service.send_alert(ADMIN_EMAIL, "Anil", "t", "m", "URGENT", "TASK", "now", "http://x")
+    res = await email_service.send_alert(ADMIN_EMAIL, "Administrator", "t", "m", "URGENT", "TASK", "now", "http://x")
     assert res.success is False and res.status == "FAILED"
     assert "rejected the sign-in" in res.detail
     assert local_smtp.messages == []
@@ -234,7 +234,7 @@ async def test_unreachable_smtp_server_is_recorded_as_failed(monkeypatch, real_s
     monkeypatch.setattr(settings, "SMTP_PASSWORD", "p")
     monkeypatch.setattr(settings, "SMTP_USE_STARTTLS", False)
     monkeypatch.setattr(settings, "SMTP_TIMEOUT_SECONDS", 3.0)
-    res = await email_service.send_alert(ADMIN_EMAIL, "Anil", "t", "m", "URGENT", "TASK", "now", "http://x")
+    res = await email_service.send_alert(ADMIN_EMAIL, "Administrator", "t", "m", "URGENT", "TASK", "now", "http://x")
     assert res.success is False and res.status == "FAILED"
 
 
